@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2f36">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Karaoke">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Karaoke Challenge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --ground:#2b2f36; --ground-2:#353a42; --ink:#f3efe6; --muted:#a7acb5;
+  --card:#f7f3ea; --card-ink:#1f1b16; --red:#b8202e; --red-2:#d63a49;
+  --gold:#e0b64c; --green:#3fa66b; --shadow:0 18px 40px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:Nunito,system-ui,sans-serif;min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:0}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.app{max-width:1080px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px max(48px,env(safe-area-inset-bottom))}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-family:Anton,Impact,sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:.04em;margin:0;text-transform:uppercase}
+h1 span{color:var(--red-2)}
+.script{font-family:Caveat,cursive;font-size:22px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media(min-width:860px){.grid{grid-template-columns:minmax(0,1fr) 320px}}
+.panel{background:var(--ground-2);border-radius:14px;padding:18px}
+.panel h2{font-family:Anton,Impact,sans-serif;font-weight:400;letter-spacing:.06em;text-transform:uppercase;font-size:16px;margin:0 0 12px;color:var(--gold)}
+
+/* setup */
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1;padding:12px 14px;border-radius:10px;border:2px solid transparent;background:var(--ground);color:var(--ink);font:inherit;font-size:16px}
+.btn{padding:12px 18px;border-radius:10px;font-weight:800;font-size:15px;letter-spacing:.02em;transition:transform .08s}
+.btn:active{transform:scale(.97)}
+.btn-red{background:var(--red);color:#fff}
+.btn-ghost{background:transparent;color:var(--muted);border:2px solid #4a505a}
+.btn-green{background:var(--green);color:#fff}
+.btn-gold{background:var(--gold);color:#2b2f36}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.players{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:6px}
+.players li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--ground)}
+.players li.active{box-shadow:inset 0 0 0 2px var(--gold)}
+.players .rank{font-family:Anton,sans-serif;width:22px;color:var(--muted)}
+.players .name{flex:1;font-weight:700}
+.players .pts{font-family:Anton,sans-serif;font-size:20px;font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+.players .pts.neg{color:var(--red-2)}
+.players .x{background:none;color:var(--muted);font-size:18px;padding:2px 6px}
+.hint{font-size:13px;color:var(--muted);margin:10px 0 0;line-height:1.5}
+
+/* stage */
+.stage{display:flex;flex-direction:column;align-items:center;gap:16px}
+.turn{text-align:center}
+.turn .who{font-family:Anton,sans-serif;font-size:clamp(26px,5vw,36px);letter-spacing:.03em;text-transform:uppercase}
+.turn .who b{color:var(--gold);font-weight:400}
+.turn .sub{color:var(--muted);font-size:14px}
+.deck{position:relative;width:min(300px,86vw);aspect-ratio:5/7;perspective:1200px}
+.deck .ghost{position:absolute;inset:0;border-radius:16px;background:var(--card);opacity:.55;box-shadow:var(--shadow)}
+.deck .ghost.g1{transform:rotate(-7deg) translate(-12px,4px)}
+.deck .ghost.g2{transform:rotate(6deg) translate(12px,2px)}
+.card{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.card.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;background:var(--card);color:var(--card-ink);box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column}
+.face .frame{flex:1;border:2px solid var(--red);outline:1px solid var(--red);outline-offset:3px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px 14px;position:relative;background:linear-gradient(#f9f6ee,#f3eee2)}
+.face .corner{position:absolute;font-family:Anton,sans-serif;color:var(--red);font-size:22px;line-height:1;text-align:center}
+.face .corner.tl{top:6px;left:8px}.face .corner.br{bottom:6px;right:8px;transform:rotate(180deg)}
+.face .corner small{display:block;font-size:14px}
+.back{transform:rotateY(180deg)}
+.front .frame{background:repeating-linear-gradient(45deg,#f7f3ea 0 6px,#efe8d8 6px 12px)}
+.front .logo{font-family:Anton,sans-serif;color:var(--red);font-size:34px;letter-spacing:.06em;line-height:1;transform:rotate(-8deg)}
+.front .logo small{display:block;font-family:Caveat,cursive;font-size:22px;letter-spacing:0;color:var(--card-ink);transform:none}
+.cat{font-family:Caveat,cursive;font-size:19px;color:var(--red);margin-bottom:6px}
+.pic{width:88px;height:96px;margin-bottom:6px;color:var(--red);display:flex;align-items:center;justify-content:center}
+.pic svg{width:100%;height:100%;overflow:visible}
+.pic.sil{width:108px;height:108px;border-radius:50%;background:radial-gradient(circle at 50% 30%,#fff5ef,#eccfcc 78%);box-shadow:inset 0 0 0 3px var(--red),0 4px 10px rgba(0,0,0,.08);color:var(--card-ink);overflow:hidden}
+.pic.sil svg{width:92%;height:92%;margin-top:9%}
+.text{font-family:Anton,Impact,sans-serif;font-size:clamp(19px,4vw,24px);line-height:1.15;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
+.worth{margin-top:14px;font-family:Nunito,sans-serif;font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--card-ink)}
+.worth b{display:inline-block;background:var(--red);color:#fff;border-radius:999px;padding:3px 12px;font-family:Anton,sans-serif;font-weight:400;font-size:18px;letter-spacing:.04em}
+.picked{margin-top:8px;font-family:Nunito,sans-serif;font-weight:800;font-size:13px;color:var(--card-ink);background:#fff;border:1.5px solid var(--red);border-radius:999px;padding:4px 12px;display:inline-flex;gap:6px;align-items:center}
+.picked b{color:var(--red);font-family:Anton,sans-serif;font-weight:400;font-size:15px;letter-spacing:.03em}
+.picked .re{background:none;border:0;padding:0;font-size:14px;cursor:pointer;line-height:1}
+.chain{margin-top:6px;font-family:Caveat,cursive;font-size:17px;color:#6b5f52}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.actions .btn{min-width:150px}
+.log{width:100%;max-width:560px;margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted)}
+.log li{padding:6px 10px;background:var(--ground);border-radius:8px}
+.log li b{color:var(--ink)}
+.log li .up{color:var(--green);font-weight:800}.log li .down{color:var(--red-2);font-weight:800}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 11px;border-radius:999px;background:var(--ground);color:var(--muted);font-size:13px;font-weight:700;border:2px solid transparent}
+.chip.on{color:var(--ink);border-color:var(--gold)}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px}
+.rules label{display:flex;flex-direction:column;gap:4px;color:var(--muted)}
+.rules input{padding:8px 10px;border-radius:8px;border:0;background:var(--ground);color:var(--ink);font:inherit;font-size:15px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--gold);color:#2b2f36;font-weight:800;padding:12px 20px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.card.flipped .back .frame>*{animation:pop .4s .3s both}
+@media(prefers-reduced-motion:reduce){.card{transition:none}.card.flipped .back .frame>*{animation:none}}
+
+/* setup screen */
+.screen:not(.on){display:none!important}
+.home{min-height:calc(100vh - 120px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center}
+.home .deckart{position:relative;width:180px;height:250px}
+.home .deckart .ghost{position:absolute;inset:0;border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+.home .deckart .g1{transform:rotate(-9deg) translate(-14px,6px);opacity:.6}.home .deckart .g2{transform:rotate(7deg) translate(14px,2px);opacity:.8}
+.home .deckart .top{position:absolute;inset:0;border-radius:14px;background:var(--card);box-shadow:var(--shadow);padding:10px}
+.home .deckart .top .frame{height:100%;border:2px solid var(--red);outline:1px solid var(--red);outline-offset:3px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:Anton,sans-serif;color:var(--red);font-size:64px}
+.home .title{font-family:Anton,sans-serif;font-size:clamp(40px,10vw,64px);letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.home .title span{color:var(--red-2)}
+.home .menu{display:flex;flex-direction:column;gap:10px;width:min(320px,90vw)}
+.home .menu .btn{font-size:18px;padding:16px}
+.home .stat{font-family:Caveat,cursive;font-size:22px;color:var(--muted)}
+.count{display:flex;align-items:center;justify-content:center;gap:16px}
+.count .btn{width:56px;height:56px;font-size:26px;padding:0;border-radius:50%}
+.count .n{font-family:Anton,sans-serif;font-size:56px;min-width:80px;text-align:center;color:var(--gold)}
+.names{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.names label{display:flex;align-items:center;gap:10px}
+.names .rank{font-family:Anton,sans-serif;width:28px;color:var(--muted);text-align:right}
+.names input{flex:1;padding:12px 14px;border-radius:10px;border:2px solid transparent;background:var(--ground);color:var(--ink);font:inherit;font-size:16px}
+.names input.bad{border-color:var(--red-2)}
+.setup{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.setup .panel h2{margin-bottom:10px}
+.catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.catgrid .chip{text-align:left;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:14px}
+.catgrid .chip b{font-family:Anton,sans-serif;font-weight:400;color:var(--gold);font-size:14px}
+.catgrid .chip:not(.on) b{color:var(--muted)}
+.start{position:sticky;bottom:0;background:var(--ground);padding:12px 0 4px}
+.start .btn{width:100%;font-size:18px;padding:16px}
+.topbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.topbar .btn{padding:8px 12px;font-size:13px}
+/* timer */
+.timer{font-family:Anton,sans-serif;font-size:34px;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--gold);display:flex;align-items:center;gap:10px}
+.timer.warn{color:var(--red-2);animation:blink .5s steps(2) infinite}
+.timer .btn{padding:6px 10px;font-size:12px}
+@keyframes blink{50%{opacity:.4}}
+.round{font-size:13px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+/* final screen */
+.final{max-width:560px;margin:0 auto;text-align:center;display:flex;flex-direction:column;gap:18px;align-items:center}
+.final .trophy{font-size:72px;line-height:1}
+.final .winner{font-family:Anton,sans-serif;font-size:clamp(36px,9vw,64px);letter-spacing:.04em;text-transform:uppercase;color:var(--gold);text-wrap:balance}
+.final .pts{font-family:Caveat,cursive;font-size:28px;color:var(--muted)}
+.podium{width:100%;display:flex;flex-direction:column;gap:6px}
+.podium li{display:flex;justify-content:space-between;padding:12px 16px;background:var(--ground-2);border-radius:10px;font-weight:700}
+.podium li:first-child{background:var(--gold);color:#2b2f36}
+.podium li:nth-child(2){box-shadow:inset 0 0 0 2px #c0c6cf}
+.podium li:nth-child(3){box-shadow:inset 0 0 0 2px #b8783a}
+.podium li span:last-child{font-family:Anton,sans-serif;font-weight:400;font-size:20px}
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+<symbol id="i-mic" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="24" y="8" width="16" height="28" rx="8"/><path d="M16 30a16 16 0 0 0 32 0M32 46v10M22 56h20"/></g></symbol>
+<symbol id="i-notes" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M24 44V16l24-6v28"/><circle cx="18" cy="44" r="6"/><circle cx="42" cy="38" r="6"/></g></symbol>
+<symbol id="i-duet" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="10" width="12" height="22" rx="6"/><rect x="40" y="10" width="12" height="22" rx="6"/><path d="M6 28a12 12 0 0 0 24 0M34 28a12 12 0 0 0 24 0M18 40v12M46 40v12M10 52h16M38 52h16"/></g></symbol>
+<symbol id="i-group" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="18" r="7"/><circle cx="14" cy="24" r="6"/><circle cx="50" cy="24" r="6"/><path d="M20 52v-8a12 12 0 0 1 24 0v8M4 50v-6a10 10 0 0 1 14-9M60 50v-6a10 10 0 0 0-14-9"/></g></symbol>
+<symbol id="i-dance" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="10" r="5"/><path d="M36 16 30 30l-12 4M30 30l4 12-8 14M34 42l14 8M30 24l14-8 8 6"/></g></symbol>
+<symbol id="i-robot" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="20" width="36" height="30" rx="4"/><path d="M32 20v-8M28 8h8M22 50v6M42 50v6M6 30v10M58 30v10"/><circle cx="24" cy="32" r="3"/><circle cx="40" cy="32" r="3"/><path d="M24 42h16"/></g></symbol>
+<symbol id="i-masks" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14c8-4 16-4 22 0v14c0 10-6 16-11 16S8 38 8 28zM34 22c8-4 16-4 22 0v14c0 10-6 16-11 16s-11-6-11-16z"/><path d="M14 24h4M22 24h4M14 32c2 3 8 3 10 0M40 32h4M48 32h4M40 42c2-3 8-3 10 0"/></g></symbol>
+<symbol id="i-guitar" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 8l14 14M44 18 26 36"/><path d="M28 32c-6-2-12 2-14 8s-8 6-8 12 6 10 12 8 6-6 12-8 8-8 6-14-4-6-8-6z"/><circle cx="24" cy="46" r="3"/></g></symbol>
+<symbol id="i-dumbbell" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="24" width="8" height="16" rx="2"/><rect x="50" y="24" width="8" height="16" rx="2"/><rect x="14" y="20" width="8" height="24" rx="2"/><rect x="42" y="20" width="8" height="24" rx="2"/><path d="M22 32h20"/></g></symbol>
+<symbol id="i-castle" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 56V30l6-6v-8l4 4 4-4v8l6 6v26M34 56V30l6-6v-8l4 4 4-4v8l6 6v26M6 56h52M26 56V44a6 6 0 0 1 12 0v12"/><path d="M32 22V8l8 3-8 3"/></g></symbol>
+<symbol id="i-lightstick" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 30v26M26 56h12"/><path d="M32 30c-10 0-14-8-14-14a14 14 0 0 1 28 0c0 6-4 14-14 14z"/><path d="M32 8l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z" stroke-width="2"/></g></symbol>
+<symbol id="i-basketball" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><path d="M32 10v44M10 32h44M17 17c8 8 8 22 0 30M47 17c-8 8-8 22 0 30"/></g></symbol>
+<symbol id="i-disc" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><circle cx="32" cy="32" r="6"/><path d="M32 12a20 20 0 0 1 20 20" stroke-dasharray="4 5"/></g></symbol>
+<symbol id="i-calendar" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="48" height="40" rx="4"/><path d="M8 26h48M20 8v10M44 8v10"/><path d="M18 36h6M29 36h6M40 36h6M18 45h6M29 45h6"/></g></symbol>
+<symbol id="i-heart" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 54S8 40 8 24a12 12 0 0 1 24-4 12 12 0 0 1 24 4c0 16-24 30-24 30z"/></g></symbol>
+<symbol id="i-heartbroken" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 54S8 40 8 24a12 12 0 0 1 24-4 12 12 0 0 1 24 4c0 16-24 30-24 30z"/><path d="M32 20l-6 10 8 6-6 10"/></g></symbol>
+<symbol id="i-tear" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8s16 18 16 30a16 16 0 0 1-32 0C16 26 32 8 32 8z"/><path d="M24 40a8 8 0 0 0 6 8"/></g></symbol>
+<symbol id="i-fire" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6c2 10 12 14 12 26a12 12 0 0 1-24 0c0-6 4-8 4-14 4 2 6 6 6 10 2-4 2-10 2-22z"/></g></symbol>
+<symbol id="i-star" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6l8 16 18 3-13 12 3 18-16-9-16 9 3-18L6 25l18-3z"/></g></symbol>
+<symbol id="i-money" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="18" width="52" height="28" rx="3"/><circle cx="32" cy="32" r="7"/><path d="M14 26v12M50 26v12"/></g></symbol>
+<symbol id="i-umbrella" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 32a26 26 0 0 1 52 0H6z"/><path d="M32 32v18a5 5 0 0 1-10 0M32 6v4"/><path d="M14 46l-2 6M50 46l2 6" stroke-width="2"/></g></symbol>
+<symbol id="i-quote" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h44v30H30l-12 10V42h-8z"/><path d="M20 22h24M20 30h16"/></g></symbol>
+<symbol id="i-question" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 22a12 12 0 0 1 24 0c0 8-12 8-12 18"/><circle cx="32" cy="50" r="2"/><circle cx="32" cy="32" r="28" stroke-dasharray="6 6"/></g></symbol>
+<symbol id="i-crown" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 46l-2-26 14 10 12-18 12 18 14-10-2 26z"/><path d="M8 52h48"/></g></symbol>
+<symbol id="i-globe" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><path d="M8 32h48M32 8c-10 10-10 38 0 48M32 8c10 10 10 38 0 48"/></g></symbol>
+<symbol id="i-cake" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 34h44v20H10zM14 34v-8h36v8"/><path d="M32 26V16M24 26v-6M40 26v-6"/><path d="M32 10c-2 2-2 4 0 6 2-2 2-4 0-6z" stroke-width="2"/><path d="M10 42c6 4 10-4 16 0s10-4 16 0 8-4 12 0"/></g></symbol>
+<symbol id="i-car" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 40l6-14h36l6 14v10H8z"/><circle cx="18" cy="50" r="5"/><circle cx="46" cy="50" r="5"/><path d="M8 40h48"/></g></symbol>
+<symbol id="i-sun" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="11"/><path d="M32 6v8M32 50v8M6 32h8M50 32h8M13 13l6 6M45 45l6 6M13 51l6-6M45 19l6-6"/></g></symbol>
+<symbol id="i-moon" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 8a24 24 0 1 0 16 36A20 20 0 0 1 40 8z"/><path d="M14 12l1 4 4 1-4 1-1 4-1-4-4-1 4-1z" stroke-width="2"/></g></symbol>
+<symbol id="i-ring" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="38" r="16"/><path d="M24 20l4-8h8l4 8-8 6z"/></g></symbol>
+<symbol id="i-phone" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="6" width="28" height="52" rx="5"/><path d="M28 50h8"/></g></symbol>
+<symbol id="i-headphones" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 40V32a22 22 0 0 1 44 0v8"/><rect x="8" y="36" width="10" height="18" rx="3"/><rect x="46" y="36" width="10" height="18" rx="3"/></g></symbol>
+<symbol id="i-villain" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 26c-4-8-4-16-2-20 4 4 8 8 12 10M48 26c4-8 4-16 2-20-4 4-8 8-12 10"/><path d="M14 30c0-10 8-16 18-16s18 6 18 16v6c0 12-8 20-18 20S14 48 14 36z"/><path d="M22 34l8 4M42 34l-8 4M24 48c4-3 12-3 16 0"/></g></symbol>
+<symbol id="i-baby" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="12"/><circle cx="32" cy="32" r="22"/><path d="M32 6v4M44 32h8"/></g></symbol>
+<symbol id="i-snowflake" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6v52M6 32h52M14 14l36 36M50 14 14 50"/><path d="M32 6l-5 5M32 6l5 5M32 58l-5-5M32 58l5-5"/></g></symbol>
+<symbol id="i-wave" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 26c8-8 16-8 24 0s16 8 24 0M6 40c8-8 16-8 24 0s16 8 24 0"/></g></symbol>
+<symbol id="i-clapper" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="26" width="48" height="30" rx="3"/><path d="M8 26l4-12 46 8-2 4"/><path d="M18 16l6 8M30 18l6 8M42 20l6 8"/></g></symbol>
+<symbol id="i-tv" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="14" width="52" height="34" rx="4"/><path d="M22 56h20M20 6l12 8 12-8"/></g></symbol>
+<symbol id="i-gamepad" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 22h28a12 12 0 0 1 12 12v6a8 8 0 0 1-14 5l-4-5H24l-4 5a8 8 0 0 1-14-5v-6a12 12 0 0 1 12-12z"/><path d="M20 30v8M16 34h8M44 31h.1M48 36h.1"/></g></symbol>
+<symbol id="i-trophy" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 8h24v14a12 12 0 0 1-24 0zM20 14H10v4a8 8 0 0 0 8 8M44 14h10v4a8 8 0 0 1-8 8M32 34v10M22 50h20v6H22z"/></g></symbol>
+<symbol id="i-flag" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 58V6"/><path d="M14 10h36l-8 10 8 10H14"/></g></symbol>
+<symbol id="i-clock" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="34" r="22"/><path d="M32 20v14l10 6M26 6h12"/></g></symbol>
+<symbol id="i-shh" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 34c0 10 6 18 14 18s14-8 14-18-6-14-14-14-14 4-14 14z"/><path d="M34 12v24"/><path d="M26 42c4 2 8 2 12 0"/></g></symbol>
+<symbol id="i-radio" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="24" width="48" height="30" rx="4"/><circle cx="40" cy="39" r="8"/><path d="M14 34h12M14 42h12M20 24l20-14"/></g></symbol>
+<symbol id="i-boat" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 42h52l-8 12H14z"/><path d="M32 42V10l18 24H32"/></g></symbol>
+<symbol id="i-crab" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="38" rx="16" ry="10"/><path d="M16 34l-8-6 2-8M48 34l8-6-2-8M20 46l-6 8M44 46l6 8M26 28l2-8M38 28l-2-8"/><circle cx="28" cy="20" r="2"/><circle cx="36" cy="20" r="2"/></g></symbol>
+<symbol id="i-swords" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54 46 18M54 54 18 18M46 18l8-8M18 18l-8-8M14 50l4 4M50 50l-4 4"/></g></symbol>
+<symbol id="i-cheese" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 44 40 18l18 8v18H6z"/><circle cx="20" cy="36" r="3"/><circle cx="34" cy="34" r="3"/><circle cx="44" cy="38" r="2"/></g></symbol>
+<symbol id="i-banana" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14c-4 20 6 36 26 40 10 2 16-2 18-6-16 2-30-8-34-30l-2-6z"/></g></symbol>
+<symbol id="i-pizza" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 54 30 32 56z"/><circle cx="26" cy="26" r="3"/><circle cx="36" cy="36" r="3"/><circle cx="28" cy="42" r="2"/></g></symbol>
+<symbol id="i-sneakers" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 44c0-6 6-8 12-10l6-10 8 4 6-2c8 6 18 8 20 14v4H6z"/><path d="M6 44h52M22 30l4 4M28 26l4 4"/></g></symbol>
+<symbol id="i-plane" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 36l50-22-14 26-8 6-6-12z"/><path d="M34 40l-8 12"/></g></symbol>
+<symbol id="i-glasses" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="36" r="10"/><circle cx="46" cy="36" r="10"/><path d="M28 36h8M8 32l4-10M56 32l-4-10"/></g></symbol>
+<symbol id="i-hat" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 36a20 20 0 0 1 40 0"/><path d="M8 36h50l-4 6H12z"/><path d="M32 16v-6"/></g></symbol>
+<symbol id="i-hips" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="10" r="5"/><path d="M32 16v10M20 22l12 4 12-4M32 26c-8 4-10 12-6 18l-4 12M32 26c8 4 10 12 6 18l4 12"/></g></symbol>
+<symbol id="i-chorus" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="18" r="5"/><circle cx="32" cy="14" r="5"/><circle cx="48" cy="18" r="5"/><path d="M8 40v-6a8 8 0 0 1 16 0v6M24 36v-6a8 8 0 0 1 16 0v6M40 40v-6a8 8 0 0 1 16 0v6"/><path d="M18 50h6M30 50h6M42 50h6" stroke-width="2"/><path d="M12 56c12-6 28-6 40 0"/></g></symbol>
+<symbol id="i-slow" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 48c0-10 8-14 14-14v-8a10 10 0 0 1 20 0v22H8z"/><circle cx="32" cy="34" r="8"/><path d="M42 26l6-10M46 30l8-4"/></g></symbol>
+<symbol id="i-fast" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M30 8l-16 28h14l-4 20 18-30H28z"/><path d="M6 20h10M6 32h6M6 44h10" stroke-width="2"/></g></symbol>
+<symbol id="i-angry" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><path d="M20 24l8 4M44 24l-8 4M22 44c6-6 14-6 20 0"/></g></symbol>
+<symbol id="i-smile" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><path d="M22 26h.1M42 26h.1"/><path d="M20 38c6 8 18 8 24 0"/></g></symbol>
+<symbol id="i-hand" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 34V12a4 4 0 0 1 8 0v14M30 24v-14a4 4 0 0 1 8 0v16M38 26v-8a4 4 0 0 1 8 0v20c0 10-6 18-16 18-8 0-12-6-16-12l-6-8a4 4 0 0 1 6-6l8 8"/></g></symbol>
+<symbol id="i-mirror" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="26" rx="16" ry="20"/><path d="M32 46v12M24 58h16"/><path d="M26 16c2-4 6-6 10-6" stroke-width="2"/></g></symbol>
+<symbol id="i-bed" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 50V26h52v24M6 40h52M10 26v-8h16v8M6 50v6M58 50v6"/></g></symbol>
+<symbol id="i-shower" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 12v10M24 22h16"/><path d="M20 30v8M26 34v8M32 30v8M38 34v8M44 30v8" stroke-width="2"/><path d="M32 12c0-6-8-6-8 0"/></g></symbol>
+<symbol id="i-kiss" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 34c6-8 14-8 22-4 8-4 16-4 22 4-6 8-14 10-22 8-8 2-16 0-22-8z"/><path d="M32 30v-4" stroke-width="2"/></g></symbol>
+<symbol id="i-road" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 58 26 6h12l12 52"/><path d="M32 14v6M32 28v6M32 42v6"/></g></symbol>
+<symbol id="i-paper" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8h24l12 12v36H14z"/><path d="M38 8v12h12M20 30h24M20 38h24M20 46h14"/></g></symbol>
+<symbol id="i-gift" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="26" width="48" height="30" rx="2"/><path d="M8 38h48M32 26v30M32 26c-8 0-14-4-14-10s10-4 14 10c4-14 14-16 14-10s-6 10-14 10z"/></g></symbol>
+<symbol id="i-ghost" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 56V30a18 18 0 0 1 36 0v26l-6-6-6 6-6-6-6 6-6-6z"/><circle cx="26" cy="30" r="2"/><circle cx="38" cy="30" r="2"/></g></symbol>
+<symbol id="i-tiara" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 44 12 22l10 10 10-18 10 18 10-10 4 22z"/><circle cx="32" cy="16" r="2"/></g></symbol>
+<symbol id="i-cassette" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="16" width="52" height="32" rx="3"/><circle cx="22" cy="32" r="6"/><circle cx="42" cy="32" r="6"/><path d="M28 32h8M14 48l4-8h28l4 8"/></g></symbol>
+<symbol id="i-discoball" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="34" r="20"/><path d="M32 6v8M12 34h40M32 14v40M18 20c8 5 20 5 28 0M18 48c8-5 20-5 28 0"/><path d="M14 8l-2 4M50 8l2 4" stroke-width="2"/></g></symbol>
+<symbol id="i-cowboy" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 34c10 6 38 6 48 0-4 4-10 8-24 8S12 38 8 34z"/><path d="M20 34V20c0-4 4-8 12-8s12 4 12 8v14"/><path d="M24 22h16"/></g></symbol>
+<symbol id="i-cap" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 34a18 18 0 0 1 36 0"/><path d="M10 34h44l-6 6H16z"/><path d="M50 34h8l-2 6h-6"/><path d="M32 16v-6"/></g></symbol>
+<symbol id="i-skull" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30a18 18 0 0 1 36 0c0 8-4 12-6 14v8H20v-8c-2-2-6-6-6-14z"/><circle cx="25" cy="30" r="4"/><circle cx="39" cy="30" r="4"/><path d="M30 40h4M26 52v4M32 52v4M38 52v4"/></g></symbol>
+<symbol id="i-sax" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 8v26a12 12 0 0 1-24 0c0-4 2-6 2-10"/><path d="M36 8h8M28 46a8 8 0 0 0 8 8h4"/><path d="M40 18h6M40 26h6M40 34h6" stroke-width="2"/></g></symbol>
+<symbol id="i-maracas" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="22" cy="20" rx="10" ry="12"/><path d="M22 32l-6 24M14 56h6"/><ellipse cx="42" cy="20" rx="10" ry="12"/><path d="M42 32l6 24M42 56h8"/><path d="M18 16h8M38 16h8" stroke-width="2"/></g></symbol>
+<symbol id="i-clap" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 30l-8-8M46 30l8-8M32 22v-10"/><path d="M20 34c0-6 6-10 12-10s12 4 12 10v10c0 8-6 14-12 14S20 52 20 44z"/><path d="M28 34v10M36 34v10"/></g></symbol>
+<symbol id="i-harmonica" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="24" width="52" height="18" rx="3"/><path d="M14 30h36M14 36h36M20 24v18M28 24v18M36 24v18M44 24v18" stroke-width="2"/></g></symbol>
+<symbol id="i-drum" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="24" rx="20" ry="8"/><path d="M12 24v18c0 4 9 8 20 8s20-4 20-8V24"/><path d="M20 14l8-10M44 14l-8-10"/></g></symbol>
+<symbol id="i-tree" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6 18 24h8L14 38h10L10 52h44L40 38h10L38 24h8z"/><path d="M28 52v6h8v-6"/><circle cx="32" cy="8" r="2" stroke-width="2"/></g></symbol>
+<symbol id="i-peace" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><path d="M32 8v48M32 32 15 49M32 32l17 17"/></g></symbol>
+<symbol id="i-beer" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 20h30v34H14z"/><path d="M44 28h8v16h-8"/><path d="M12 20c0-8 8-10 12-8 2-6 14-6 16 0 6-2 10 2 8 8"/><path d="M22 30v16M30 30v16" stroke-width="2"/></g></symbol>
+<symbol id="i-keyboard" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="20" width="52" height="24" rx="3"/><path d="M16 20v14M26 20v14M36 20v14M46 20v14"/><path d="M6 34h52" stroke-width="2"/></g></symbol>
+<symbol id="i-gradcap" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 24 32 12l26 12-26 12z"/><path d="M16 29v12c0 4 8 8 16 8s16-4 16-8V29"/><path d="M58 24v14"/></g></symbol>
+<symbol id="i-briefcase" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="20" width="52" height="34" rx="4"/><path d="M22 20v-6h20v6M6 34h52M28 34v6h8v-6"/></g></symbol>
+<symbol id="i-suitcase" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="18" width="44" height="38" rx="4"/><path d="M22 18v-8h20v8M20 18v38M44 18v38"/></g></symbol>
+<symbol id="i-house" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 30 32 8l24 22"/><path d="M14 26v28h36V26"/><path d="M26 54V38h12v16"/></g></symbol>
+<symbol id="i-handshake" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="7"/><circle cx="46" cy="18" r="7"/><path d="M6 50v-6a12 12 0 0 1 24 0v6M34 50v-6a12 12 0 0 1 24 0v6"/><path d="M32 30c-3-4-8-2-8 2 0 4 8 8 8 8s8-4 8-8c0-4-5-6-8-2z" stroke-width="2"/></g></symbol>
+<symbol id="i-fist" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 34V22a4 4 0 0 1 8 0M26 20a4 4 0 0 1 8 0v4M34 22a4 4 0 0 1 8 0v6M42 26a4 4 0 0 1 8 0v18c0 8-6 14-16 14-8 0-12-4-16-10l-4-6a4 4 0 0 1 6-4l4 4"/><path d="M26 34h16" stroke-width="2"/></g></symbol>
+<symbol id="i-rocket" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6c8 6 12 16 12 28l-12 8-12-8c0-12 4-22 12-28z"/><circle cx="32" cy="26" r="5"/><path d="M20 34l-8 8 8 2M44 34l8 8-8 2M28 44l-2 12 6-4 6 4-2-12"/></g></symbol>
+<symbol id="i-hourglass" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8h36M14 56h36M18 8c0 14 14 18 14 24S18 42 18 56M46 8c0 14-14 18-14 24s14 10 14 24"/><path d="M26 52h12" stroke-width="2"/></g></symbol>
+<symbol id="i-bird" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 34c8-10 20-12 30-6 4-6 10-8 18-6-4 2-6 6-6 10-2 12-14 20-30 16 4-2 8-6 8-10-8 2-14 0-20-4z"/><circle cx="46" cy="26" r="1.5" stroke-width="2"/></g></symbol>
+<symbol id="i-lock" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="28" width="36" height="28" rx="4"/><path d="M22 28v-8a10 10 0 0 1 20 0v8"/><circle cx="32" cy="42" r="3"/><path d="M32 45v5"/></g></symbol>
+<symbol id="i-sunrise" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 44a20 20 0 0 1 40 0"/><path d="M6 44h52M32 12v6M12 20l4 4M52 20l-4 4M20 54h24"/></g></symbol>
+<symbol id="i-snail" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="38" cy="34" r="14"/><circle cx="38" cy="34" r="6"/><path d="M24 40c-6 0-14 2-16 8h40M10 40l4-14M8 26l2-4M16 26l-2-4"/></g></symbol>
+<symbol id="i-lightning" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M36 4 14 36h16l-4 24 24-34H34z"/></g></symbol>
+<symbol id="i-arrowup" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 56V10M14 28l18-18 18 18"/><path d="M20 56h24" stroke-width="2"/></g></symbol>
+<symbol id="i-arrowdown" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8v46M14 36l18 18 18-18"/><path d="M20 8h24" stroke-width="2"/></g></symbol>
+<symbol id="i-tie" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8h16l-4 8 6 30-10 10-10-10 6-30z"/><path d="M28 16h8"/></g></symbol>
+<symbol id="i-eye" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 32c8-12 18-18 28-18s20 6 28 18c-8 12-18 18-28 18S12 44 4 32z"/><circle cx="32" cy="32" r="8"/><circle cx="32" cy="32" r="3"/></g></symbol>
+<symbol id="i-megaphone" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26v12h8l24 12V14L16 26z"/><path d="M16 38l4 14h8l-2-12M46 24a10 10 0 0 1 0 16M52 18a18 18 0 0 1 0 28"/></g></symbol>
+<symbol id="i-paw" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="18" cy="26" rx="5" ry="7"/><ellipse cx="46" cy="26" rx="5" ry="7"/><ellipse cx="27" cy="16" rx="5" ry="7"/><ellipse cx="37" cy="16" rx="5" ry="7"/><path d="M32 30c-8 0-14 6-14 14 0 6 4 10 8 8 4-2 8-2 12 0 4 2 8-2 8-8 0-8-6-14-14-14z"/></g></symbol>
+<symbol id="i-letter" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 54 32 10l18 44M20 40h24"/></g></symbol>
+<symbol id="i-city" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 56V30h12V18h12v-8h12v14h10v14h8v18z"/><path d="M12 38h4M12 46h4M24 28h4M24 36h4M24 44h4M36 20h4M36 28h4M36 36h4M36 44h4M48 40h4M48 48h4" stroke-width="2"/></g></symbol>
+<symbol id="i-hash" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 16 54M46 10l-6 44M10 24h46M8 40h46"/></g></symbol>
+<symbol id="i-palette" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8C18 8 6 18 6 32s10 22 20 22c6 0 6-4 6-8 0-6 6-8 12-8 8 0 14-4 14-12C58 16 46 8 32 8z"/><circle cx="20" cy="26" r="3"/><circle cx="32" cy="18" r="3"/><circle cx="44" cy="24" r="3"/><circle cx="16" cy="40" r="3"/></g></symbol>
+<symbol id="i-lips" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 32c8-10 16-12 26-8 10-4 18-2 26 8-8 10-16 14-26 12-10 2-18-2-26-12z"/><path d="M6 32h52M32 24v-2" stroke-width="2"/></g></symbol>
+<symbol id="i-boxing" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 30V22a6 6 0 0 1 6-6h22a10 10 0 0 1 10 10v10a10 10 0 0 1-10 10H26a12 12 0 0 1-12-12z"/><path d="M14 30h-4v12h6M22 26v14" /></g></symbol>
+<symbol id="i-infinity" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 32c-6-8-10-12-16-12a12 12 0 0 0 0 24c6 0 10-4 16-12s10-12 16-12a12 12 0 0 1 0 24c-6 0-10-4-16-12z"/></g></symbol>
+<symbol id="i-cloud" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 48a10 10 0 0 1-2-20 14 14 0 0 1 27-4 10 10 0 0 1 9 24z"/></g></symbol>
+<symbol id="i-angel" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="12" rx="12" ry="4"/><circle cx="32" cy="28" r="8"/><path d="M20 56c0-10 5-16 12-16s12 6 12 16"/><path d="M20 34c-8-2-14 2-16 8 6 0 10 2 14 6M44 34c8-2 14 2 16 8-6 0-10 2-14 6"/></g></symbol>
+<symbol id="i-flower" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="26" r="6"/><circle cx="32" cy="12" r="6"/><circle cx="44" cy="19" r="6"/><circle cx="44" cy="33" r="6"/><circle cx="32" cy="40" r="6"/><circle cx="20" cy="33" r="6"/><circle cx="20" cy="19" r="6"/><path d="M32 46v12M32 52c-6-4-10-2-12 0M32 54c6-4 10-2 12 0"/></g></symbol>
+<symbol id="i-girl" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="22" r="14"/><path d="M32 36v20M22 48h20"/></g></symbol>
+<symbol id="i-boy" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="36" r="14"/><path d="M38 26 54 10M42 10h12v12"/></g></symbol>
+<symbol id="i-party" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54 22 22l20 20z"/><path d="M14 46l14-6M18 36l10 10" stroke-width="2"/><path d="M44 12l4-4M50 22l6-2M36 10l0-6M46 32c4-2 8 0 10 4M40 18c2-4 6-6 10-6" stroke-width="2"/><circle cx="54" cy="12" r="2" stroke-width="2"/></g></symbol>
+<symbol id="i-bandage" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="22" width="52" height="20" rx="10" transform="rotate(-30 32 32)"/><rect x="22" y="24" width="20" height="16" rx="2" transform="rotate(-30 32 32)"/><path d="M30 30h.1M34 34h.1M30 34h.1M34 30h.1" stroke-width="2"/></g></symbol>
+<symbol id="i-computer" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="48" height="32" rx="3"/><path d="M4 50h56M24 44l-2 6M40 44l2 6"/><path d="M16 22h20M16 30h12" stroke-width="2"/></g></symbol>
+<symbol id="i-lamp" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 36c0-6 6-10 14-10h12c8 0 12 4 12 8-2 6-8 10-16 10H24c-8 0-14-2-14-8z"/><path d="M48 32c6-4 10-2 10 2M20 44l2 8h20l2-8M28 26v-6h8v6"/><path d="M50 18c2-4 6-4 6 0" stroke-width="2"/></g></symbol>
+<symbol id="i-sword" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 52 44 20M40 16l8 8M44 20l8-8-4 12"/><path d="M14 46l4 4M10 54l-4 4" /></g></symbol>
+<symbol id="i-feather" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 50C14 30 30 12 52 10c-2 22-20 38-38 40z"/><path d="M14 50 40 24M22 42l-2-8M28 36l-2-10M34 30l-2-10"/><path d="M14 50 8 56"/></g></symbol>
+<symbol id="i-lantern" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 18h20l4 12v18l-4 6H22l-4-6V30z"/><path d="M26 10h12v8H26zM28 26h8" /><path d="M32 30v14" stroke-width="2"/></g></symbol>
+<symbol id="i-frog" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="40" rx="20" ry="12"/><circle cx="20" cy="26" r="7"/><circle cx="44" cy="26" r="7"/><circle cx="20" cy="26" r="2" stroke-width="2"/><circle cx="44" cy="26" r="2" stroke-width="2"/><path d="M24 42c4 4 12 4 16 0"/></g></symbol>
+<symbol id="i-candle" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="24" y="26" width="16" height="30" rx="2"/><path d="M32 26v-6"/><path d="M32 6c-4 4-4 8 0 12 4-4 4-8 0-12z"/><path d="M18 56h28"/></g></symbol>
+<symbol id="i-rose" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="20" r="12"/><path d="M32 14a6 6 0 0 1 4 10 6 6 0 0 1-8-4"/><path d="M32 32v24M32 44c-6-4-12-2-14 4 6 2 10 0 14-4zM32 48c6-4 12-2 14 4-6 2-10 0-14-4z"/></g></symbol>
+<symbol id="i-mug" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18h30v34H14z"/><path d="M44 26h8v16h-8"/><path d="M14 18c4-4 22-4 30 0"/></g></symbol>
+<symbol id="i-lion" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="14"/><path d="M32 10 26 16M32 10l6 6M18 18l4 6M46 18l-4 6M12 32h6M46 32h6M18 46l4-6M46 46l-4-6M32 54l-6-6M32 54l6-6"/><circle cx="26" cy="30" r="1.5" stroke-width="2"/><circle cx="38" cy="30" r="1.5" stroke-width="2"/><path d="M28 38c2 2 6 2 8 0M32 34v4"/></g></symbol>
+<symbol id="i-volcano" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 56 22 24h20l16 32z"/><path d="M22 24c4-6 6-10 4-16 4 2 6 4 6 8 2-4 6-6 10-6-2 4-2 8 0 14"/><path d="M28 34l4 8 4-8" stroke-width="2"/></g></symbol>
+<symbol id="i-pumpkin" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="36" rx="22" ry="18"/><path d="M22 20c0-8 6-10 10-10s10 2 10 10M32 10v-4"/><path d="M20 32l6 4-6 4M44 32l-6 4 6 4M22 46c6-4 14-4 20 0"/></g></symbol>
+<symbol id="i-leaf" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54C10 30 30 12 56 10c-2 26-20 44-46 44z"/><path d="M10 54 44 20M20 44l-8-2M30 34l-8-4M40 24l-8-4" stroke-width="2"/></g></symbol>
+<symbol id="i-broom" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M44 8 22 34"/><path d="M22 34c-6 0-12 6-12 14 0 4 2 8 4 8 4 0 8-4 12-6 4-4 6-8 4-12z"/><path d="M16 46l6 4M20 40l6 4" stroke-width="2"/></g></symbol>
+<symbol id="i-magnet" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10v22a18 18 0 0 0 36 0V10H38v22a6 6 0 0 1-12 0V10z"/><path d="M14 20h12M38 20h12"/></g></symbol>
+<symbol id="i-icecream" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 30 32 58l14-28"/><path d="M18 30a14 14 0 0 1 28 0"/><circle cx="32" cy="14" r="2" stroke-width="2"/><path d="M24 36h16M28 44h8" stroke-width="2"/></g></symbol>
+<symbol id="i-soda" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 22h28l-4 34H22z"/><path d="M14 22h36"/><path d="M36 22 44 6"/><path d="M26 34v14M32 34v14M38 34v14" stroke-width="2"/></g></symbol>
+<symbol id="i-bell" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 42V28a14 14 0 0 1 28 0v14l4 6H14z"/><path d="M26 54a6 6 0 0 0 12 0M32 8v6"/></g></symbol>
+<symbol id="i-chef" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 30c-8 0-10-12-2-14 0-8 12-10 16-4 4-6 16-4 16 4 8 2 6 14-2 14v10H18z"/><path d="M18 40h28v10H18z"/><path d="M26 34v6M32 34v6M38 34v6" stroke-width="2"/></g></symbol>
+<symbol id="i-wand" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54 40 24"/><path d="M44 8l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/><path d="M52 30l1 3 3 1-3 1-1 3-1-3-3-1 3-1zM20 14l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" stroke-width="2"/></g></symbol>
+<symbol id="i-fish" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 32c8-10 18-16 30-14 8 2 14 8 18 14-4 6-10 12-18 14-12 2-22-4-30-14z"/><path d="M46 20l10-8-2 20-8-6"/><circle cx="20" cy="30" r="2" stroke-width="2"/><path d="M30 26c4 4 4 8 0 12"/></g></symbol>
+<symbol id="i-diamond" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 12h28l10 14-24 30L8 26z"/><path d="M8 26h48M18 12l6 14 8-14 8 14 6-14M24 26l8 30 8-30"/></g></symbol>
+<symbol id="i-piano" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="18" width="52" height="30" rx="3"/><path d="M16 18v18M26 18v18M36 18v18M46 18v18"/><path d="M12 18v12h6M22 18v12h6M32 18v12h6M42 18v12h6" stroke-width="2"/></g></symbol>
+<symbol id="i-baseball" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="20"/><path d="M18 18c8 8 8 20 0 28M46 18c-8 8-8 20 0 28"/><path d="M20 24l3 1M20 40l3-1M44 24l-3 1M44 40l-3-1" stroke-width="2"/></g></symbol>
+<symbol id="i-dizzy" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><path d="M20 26l6 6M26 26l-6 6M38 26l6 6M44 26l-6 6"/><path d="M24 42c2-4 14-4 16 0"/></g></symbol>
+<symbol id="i-alone" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="18" r="8"/><path d="M18 56c0-12 6-20 14-20s14 8 14 20"/><path d="M8 30c2-6 6-8 8-6M56 30c-2-6-6-8-8-6" stroke-width="2" stroke-dasharray="2 3"/></g></symbol>
+<symbol id="i-blushface" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="22"/><path d="M24 26h.1M40 26h.1"/><path d="M24 40c4 3 12 3 16 0"/><circle cx="20" cy="36" r="3" stroke-width="2"/><circle cx="44" cy="36" r="3" stroke-width="2"/></g></symbol>
+<symbol id="i-concert" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 56V36h52v20"/><path d="M14 36V22M32 36V16M50 36V22"/><path d="M8 12l6 6M56 12l-6 6M32 6v6" stroke-width="2"/><rect x="28" y="24" width="8" height="12" rx="4"/></g></symbol>
+<symbol id="i-butter" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 34h40l8-8H16z"/><path d="M8 34v14h40V34M48 48l8-8V26"/><path d="M24 22c0-6 6-8 8-4 2-4 8-2 8 4" stroke-width="2"/></g></symbol>
+<symbol id="i-horse" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 56V36c0-10 6-16 14-16h14l8-10 2 12c2 2 4 6 4 10v24"/><path d="M20 56V44M50 56V44M42 20l-4-8"/><path d="M28 20c-6-2-10-6-10-10" stroke-width="2"/></g></symbol>
+<symbol id="i-snake" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 48c0-8 10-8 10-16s-10-8-10-16 8-10 14-6M26 10c8 0 12 6 12 12s-10 8-10 16 10 8 10 16-8 8-14 6"/><circle cx="20" cy="12" r="1.5" stroke-width="2"/></g></symbol>
+<symbol id="i-telephone" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10h10l6 12-6 6c4 8 8 12 16 16l6-6 12 6v10c0 2-2 4-4 4C28 58 6 36 6 14c0-2 2-4 4-4z"/></g></symbol>
+<symbol id="s-diva" viewBox="0 0 64 64"><g><path d="M14 30c-2-17 6-27 18-27s20 10 18 27c1 10-1 18-3 26H17c-2-8-4-16-3-26z" fill="currentColor"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 23c3-9 8-14 15-14s12 5 15 14c-4-5-9-7-15-5-6-2-11 0-15 5z" fill="currentColor"/><path d="M22 20q3-2 6-1M42 20q-3-2-6-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/><ellipse cx="25.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="27" r="1.6" fill="#fff"/><circle cx="27.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="27" r="1.6" fill="#fff"/><circle cx="40.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="22" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="32" cy="36" rx="2.6" ry="3.2" fill="#b8202e"/><ellipse cx="32" cy="37.6" rx="1.6" ry="1.2" fill="#f0a0a8"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><g transform="rotate(-20 46 46)"><rect x="44.8" y="46" width="2.4" height="8" fill="currentColor"/><rect x="43" y="39" width="6" height="8" rx="3" fill="#b8202e"/><path d="M44 41h4M44 43h4" stroke="#f7f3ea" stroke-width=".8"/></g><path d="M50 13l1.0499999999999998 1.9500000000000002 1.9500000000000002 1.0499999999999998-1.9500000000000002 1.0499999999999998-1.0499999999999998 1.9500000000000002-1.0499999999999998-1.9500000000000002-1.9500000000000002-1.0499999999999998 1.9500000000000002-1.0499999999999998z" fill="#e0b64c"/><path d="M14 42l0.7 1.3 1.3 0.7-1.3 0.7-0.7 1.3-0.7-1.3-1.3-0.7 1.3-0.7z" fill="#e0b64c"/><path d="M52 32.4l0.5599999999999999 1.04 1.04 0.5599999999999999-1.04 0.5599999999999999-0.5599999999999999 1.04-0.5599999999999999-1.04-1.04-0.5599999999999999 1.04-0.5599999999999999z" fill="#b8202e"/></g></symbol>
+<symbol id="s-rapper" viewBox="0 0 64 64"><g><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 24c0-11 7-17 15-17s15 6 15 17H17z" fill="currentColor"/><path d="M13 23h38a2.2 2.2 0 0 1 0 4.4H13a2.2 2.2 0 0 1 0-4.4z" fill="#b8202e"/><path d="M47 22h12l-2 6H47z" fill="#b8202e"/><ellipse cx="25.5" cy="31" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="32.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="29.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="32.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="31" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="32.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="29.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="32.98" r="0.7200000000000001" fill="#fff"/><path d="M28 39h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M22 58V48a10 10 0 0 1 20 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M22 47c4 6 16 6 20 0" fill="none" stroke="#e0b64c" stroke-width="2.2" stroke-dasharray="2 1.4"/><circle cx="32" cy="52" r="2.2" fill="#e0b64c"/><path d="M26 48l6 6 6-6" fill="none" stroke="#f7f3ea" stroke-width="1.4"/></g></symbol>
+<symbol id="s-rockstar" viewBox="0 0 64 64"><g><path d="M14 26 6 6l12 9 4-13 6 10 4-13 6 13 12-9-8 20z" fill="currentColor"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M22 20l6 3M42 20l-6 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="25.5" cy="30" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="31.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="28" r="1.6" fill="#fff"/><circle cx="27.1" cy="32.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="30" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="31.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="28" r="1.6" fill="#fff"/><circle cx="40.1" cy="32.2" r="0.8" fill="#fff"/><ellipse cx="32" cy="37" rx="2.6" ry="3.2" fill="#b8202e"/><ellipse cx="32" cy="38.6" rx="1.6" ry="1.2" fill="#f0a0a8"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M18 56 46 34" stroke="#b8202e" stroke-width="4.5" stroke-linecap="round"/><path d="M19 55c-6-1-10 3-9 8s6 6 10 3 4-9-1-11z" fill="#b8202e"/><path d="M46 34l5-5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M54 21l1.0499999999999998 1.9500000000000002 1.9500000000000002 1.0499999999999998-1.9500000000000002 1.0499999999999998-1.0499999999999998 1.9500000000000002-1.0499999999999998-1.9500000000000002-1.9500000000000002-1.0499999999999998 1.9500000000000002-1.0499999999999998z" fill="#e0b64c"/><path d="M10 38l0.7 1.3 1.3 0.7-1.3 0.7-0.7 1.3-0.7-1.3-1.3-0.7 1.3-0.7z" fill="#b8202e"/></g></symbol>
+<symbol id="s-crooner" viewBox="0 0 64 64"><g><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 26c-1-12 6-19 15-19 10 0 16 7 15 19-3-7-7-10-15-9-8-1-12 2-15 9z" fill="currentColor"/><path d="M40 12c4 1 7 4 8 8-3-3-6-4-9-4z" fill="currentColor"/><path d="M22 20q3-2 6-1M42 20q-3-2-6-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/><ellipse cx="25.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="27" r="1.6" fill="#fff"/><circle cx="27.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="27" r="1.6" fill="#fff"/><circle cx="40.1" cy="31.2" r="0.8" fill="#fff"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#f7f3ea"/><path d="M32 53l-2 5h4z" fill="#b8202e"/><rect x="48" y="36" width="2.4" height="22" fill="currentColor"/><rect x="45.5" y="28" width="7.4" height="10" rx="3.7" fill="#b8202e"/><path d="M43 58h13" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></g></symbol>
+<symbol id="s-boyband" viewBox="0 0 64 64"><g><g transform="translate(0 18) scale(0.62)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 22c0-9 6-14 15-14s15 5 15 14c-4-5-9-7-15-5-6-2-11 0-15 5z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/></g><g transform="translate(24 18) scale(0.62)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 22c1-10 6-14 15-14s14 4 15 14l-6-4-5 5-4-5-5 5-5-5z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/></g><g transform="translate(12 8) scale(0.72)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 23c0-10 6-15 15-15s15 5 15 15c-3-6-8-8-15-6-7-2-12 0-15 6z" fill="currentColor"/><path d="M40 10c5 1 8 5 8 11-3-5-6-7-10-7z" fill="currentColor"/><ellipse cx="25.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="27" r="1.6" fill="#fff"/><circle cx="27.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="27" r="1.6" fill="#fff"/><circle cx="40.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="22" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="32" cy="36" rx="2.6" ry="3.2" fill="#b8202e"/><ellipse cx="32" cy="37.6" rx="1.6" ry="1.2" fill="#f0a0a8"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#f7f3ea"/></g><path d="M8 11.6l0.84 1.56 1.56 0.84-1.56 0.84-0.84 1.56-0.84-1.56-1.56-0.84 1.56-0.84z" fill="#e0b64c"/><path d="M56 10l0.7 1.3 1.3 0.7-1.3 0.7-0.7 1.3-0.7-1.3-1.3-0.7 1.3-0.7z" fill="#e0b64c"/></g></symbol>
+<symbol id="s-girlgroup" viewBox="0 0 64 64"><g><g transform="translate(0 18) scale(0.62)"><path d="M12 30c-2-16 6-25 20-25s22 9 20 25c0 12-2 20-4 28H16c-2-8-4-16-4-28z" fill="currentColor"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 23c3-8 8-12 15-12s12 4 15 12c-4-4-9-6-15-4-6-2-11 0-15 4z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="22" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><circle cx="18" cy="16" r="2.5" fill="#b8202e"/></g><g transform="translate(24 18) scale(0.62)"><path d="M17 26c0-12 6-19 15-19s15 7 15 19c0 5-1 9-2 13H19c-1-4-2-8-2-13z" fill="currentColor"/><path d="M50 22c6 6 6 18 2 28M14 22c-6 6-6 18-2 28" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 24c2-9 7-13 15-13s13 4 15 13c-4-5-9-7-15-5-6-2-11 0-15 5z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="22" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><circle cx="50" cy="20" r="2.5" fill="#b8202e"/><circle cx="14" cy="20" r="2.5" fill="#b8202e"/></g><g transform="translate(12 8) scale(0.72)"><path d="M16 24c0-12 6-19 16-19s16 7 16 19c0 3 0 6-1 8H17c-1-2-1-5-1-8z" fill="currentColor"/><path d="M46 18c8 3 10 14 6 26" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 23c3-9 8-13 15-13s12 4 15 13c-4-5-9-7-15-5-6-2-11 0-15 5z" fill="currentColor"/><ellipse cx="25.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="27" r="1.6" fill="#fff"/><circle cx="27.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="27" r="1.6" fill="#fff"/><circle cx="40.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="22" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="34" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="32" cy="36" rx="2.6" ry="3.2" fill="#b8202e"/><ellipse cx="32" cy="37.6" rx="1.6" ry="1.2" fill="#f0a0a8"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#f7f3ea"/><circle cx="46" cy="16" r="3" fill="#b8202e"/></g><path d="M8 9.6l0.84 1.56 1.56 0.84-1.56 0.84-0.84 1.56-0.84-1.56-1.56-0.84 1.56-0.84z" fill="#e0b64c"/><path d="M56 8l0.7 1.3 1.3 0.7-1.3 0.7-0.7 1.3-0.7-1.3-1.3-0.7 1.3-0.7z" fill="#e0b64c"/><path d="M32 2.4l0.5599999999999999 1.04 1.04 0.5599999999999999-1.04 0.5599999999999999-0.5599999999999999 1.04-0.5599999999999999-1.04-1.04-0.5599999999999999 1.04-0.5599999999999999z" fill="#b8202e"/></g></symbol>
+<symbol id="s-legend" viewBox="0 0 64 64"><g><path d="M16 27c-3-14 4-22 16-22 13 0 20 8 16 22-1-7-6-11-16-11s-15 4-16 11z" fill="currentColor"/><path d="M20 12c5-8 15-9 24-3-7-2-14-1-19 3-2 2-4 2-5 0z" fill="currentColor"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><rect x="18" y="25" width="11" height="8" rx="3" fill="currentColor"/><rect x="35" y="25" width="11" height="8" rx="3" fill="currentColor"/><path d="M29 28h6M18 28l-4-2M46 28l4-2" stroke="currentColor" stroke-width="1.6"/><circle cx="21" cy="27" r="1.2" fill="#fff" opacity=".6"/><circle cx="38" cy="27" r="1.2" fill="#fff" opacity=".6"/><path d="M29.5 37q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M22 58V48a10 10 0 0 1 20 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#f7f3ea"/><path d="M25 49.4l0.5599999999999999 1.04 1.04 0.5599999999999999-1.04 0.5599999999999999-0.5599999999999999 1.04-0.5599999999999999-1.04-1.04-0.5599999999999999 1.04-0.5599999999999999z" fill="#e0b64c"/><path d="M38 53.4l0.5599999999999999 1.04 1.04 0.5599999999999999-1.04 0.5599999999999999-0.5599999999999999 1.04-0.5599999999999999-1.04-1.04-0.5599999999999999 1.04-0.5599999999999999z" fill="#e0b64c"/><path d="M33 46.8l0.42 0.78 0.78 0.42-0.78 0.42-0.42 0.78-0.42-0.78-0.78-0.42 0.78-0.42z" fill="#e0b64c"/><path d="M52 37.6l0.84 1.56 1.56 0.84-1.56 0.84-0.84 1.56-0.84-1.56-1.56-0.84 1.56-0.84z" fill="#e0b64c"/></g></symbol>
+<symbol id="s-band" viewBox="0 0 64 64"><g><g transform="translate(-2 18) scale(0.62)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 22c0-9 6-14 15-14s15 5 15 14c-4-5-9-7-15-5-6-2-11 0-15 5z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M14 58 44 36" stroke="#b8202e" stroke-width="5" stroke-linecap="round"/><path d="M15 57c-6-1-10 3-9 8s6 6 10 3 4-9-1-11z" fill="#b8202e"/></g><g transform="translate(26 18) scale(0.62)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 22l3-12 5 6 7-8 7 8 5-6 3 12z" fill="currentColor"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><path d="M29.5 36q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="32" cy="52" rx="11" ry="4" fill="#e0b64c"/><rect x="21" y="52" width="22" height="8" fill="#b8202e"/><ellipse cx="32" cy="60" rx="11" ry="4" fill="#b8202e"/></g><g transform="translate(12 8) scale(0.72)"><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M17 23c0-10 6-15 15-15s15 5 15 15c-3-6-8-8-15-6-7-2-12 0-15 6z" fill="currentColor"/><ellipse cx="25.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="27" r="1.6" fill="#fff"/><circle cx="27.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="29" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="30.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="27" r="1.6" fill="#fff"/><circle cx="40.1" cy="31.2" r="0.8" fill="#fff"/><ellipse cx="32" cy="36" rx="2.6" ry="3.2" fill="#b8202e"/><ellipse cx="32" cy="37.6" rx="1.6" ry="1.2" fill="#f0a0a8"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><g transform="rotate(0 32 46)"><rect x="30.8" y="46" width="2.4" height="8" fill="currentColor"/><rect x="29" y="39" width="6" height="8" rx="3" fill="#b8202e"/><path d="M30 41h4M30 43h4" stroke="#f7f3ea" stroke-width=".8"/></g></g><path d="M6 10l0.7 1.3 1.3 0.7-1.3 0.7-0.7 1.3-0.7-1.3-1.3-0.7 1.3-0.7z" fill="#b8202e"/><path d="M58 11.6l0.84 1.56 1.56 0.84-1.56 0.84-0.84 1.56-0.84-1.56-1.56-0.84 1.56-0.84z" fill="#e0b64c"/></g></symbol>
+<symbol id="s-reggae" viewBox="0 0 64 64"><g><path d="M12 30c-4 7-6 16-4 26M52 30c4 7 6 16 4 26M18 34c-3 6-4 14-2 22M46 34c3 6 4 14 2 22M25 38c-2 6-2 12-1 18M39 38c2 6 2 12 1 18" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><ellipse cx="32" cy="26" rx="15" ry="14" fill="#f8e6d6"/><path d="M16 24c0-11 7-17 16-17s16 6 16 17z" fill="#b8202e"/><path d="M17 19c3-5 8-8 15-8s12 3 15 8z" fill="#e0b64c"/><path d="M19 15c3-3 7-5 13-5s10 2 13 5z" fill="#3fa66b"/><ellipse cx="25.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="25.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="24.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="26.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="38.5" cy="30" rx="3.7800000000000002" ry="5.04" fill="currentColor"/><ellipse cx="38.5" cy="31.08" rx="2.3400000000000003" ry="3.24" fill="#b8202e" opacity=".85"/><circle cx="37.24" cy="28.2" r="1.4400000000000002" fill="#fff"/><circle cx="39.94" cy="31.98" r="0.7200000000000001" fill="#fff"/><ellipse cx="22" cy="35" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="35" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><path d="M29.5 37q2.5 2.5 5 0" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="currentColor"/><circle cx="21" cy="50" r="3" fill="currentColor"/><circle cx="43" cy="50" r="3" fill="currentColor"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#e0b64c"/></g></symbol>
+<symbol id="s-soul" viewBox="0 0 64 64"><g><circle cx="32" cy="22" r="22" fill="currentColor"/><circle cx="13" cy="14" r="7" fill="currentColor"/><circle cx="51" cy="14" r="7" fill="currentColor"/><circle cx="22" cy="4" r="5" fill="currentColor"/><circle cx="42" cy="4" r="5" fill="currentColor"/><circle cx="32" cy="2" r="4" fill="currentColor"/><ellipse cx="32" cy="27" rx="14" ry="13" fill="#f8e6d6"/><path d="M18 19c4-5 9-7 14-7s10 2 14 7v4c-4-4-8-5-14-5s-10 1-14 5z" fill="#b8202e"/><path d="M22 22q3-2 6-1M42 22q-3-2-6-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/><ellipse cx="25.5" cy="30" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="25.5" cy="31.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="24.1" cy="28" r="1.6" fill="#fff"/><circle cx="27.1" cy="32.2" r="0.8" fill="#fff"/><ellipse cx="38.5" cy="30" rx="4.2" ry="5.6" fill="currentColor"/><ellipse cx="38.5" cy="31.2" rx="2.6" ry="3.6" fill="#b8202e" opacity=".85"/><circle cx="37.1" cy="28" r="1.6" fill="#fff"/><circle cx="40.1" cy="32.2" r="0.8" fill="#fff"/><ellipse cx="22" cy="35" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><ellipse cx="42" cy="35" rx="2.6" ry="1.6" fill="#f0a0a8" opacity=".7"/><path d="M27 37q5 5 10 0z" fill="currentColor"/><path d="M29 37.5h6" stroke="#fff" stroke-width="1.2"/><circle cx="18" cy="36" r="2.8" fill="none" stroke="#e0b64c" stroke-width="1.6"/><circle cx="46" cy="36" r="2.8" fill="none" stroke="#e0b64c" stroke-width="1.6"/><path d="M23 58V48a9 9 0 0 1 18 0v10z" fill="#b8202e"/><circle cx="21" cy="50" r="3" fill="#b8202e"/><circle cx="43" cy="50" r="3" fill="#b8202e"/><circle cx="20" cy="53" r="2.4" fill="#f8e6d6"/><circle cx="44" cy="53" r="2.4" fill="#f8e6d6"/><ellipse cx="28" cy="59" rx="4" ry="2" fill="currentColor"/><ellipse cx="36" cy="59" rx="4" ry="2" fill="currentColor"/><path d="M28 48l4 5 4-5" fill="#f7f3ea"/></g></symbol>
+</svg>
+<div class="app">
+<header>
+  <h1>Karaoke <span>Challenge</span></h1>
+  <div class="script">Draw a card, take on the challenge (or pass) &amp; have fun!</div>
+  <button class="btn btn-gold" id="installBtn" hidden style="padding:8px 14px;font-size:13px">📲 Install app</button>
+</header>
+
+<!-- HOME SCREEN -->
+<div class="screen" id="scrHome">
+  <div class="home">
+    <div class="deckart"><div class="ghost g1"></div><div class="ghost g2"></div><div class="top"><div class="frame">♥</div></div></div>
+    <div class="title">Karaoke <span>Challenge</span></div>
+    <div class="menu">
+      <button class="btn btn-red" id="homeStart">▶ Start game</button>
+      <button class="btn btn-ghost" id="homeSettings">⚙ Settings</button>
+      <button class="btn btn-ghost" id="homeResume" hidden>↩ Resume game</button>
+    </div>
+    <div class="stat" id="homeStat"></div>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div class="screen setup" id="scrSettings">
+  <div class="topbar"><button class="btn btn-ghost" id="settingsBack">← Back</button><span class="round">Settings</span></div>
+  <section class="panel">
+    <h2 style="display:flex;justify-content:space-between;align-items:center">Categories <button class="chip" id="catsAll" type="button">All / none</button></h2>
+    <div class="catgrid" id="filters"></div>
+    <p class="hint" id="deckSize"></p>
+  </section>
+  <section class="panel">
+    <h2 style="display:flex;justify-content:space-between;align-items:center">Artists <button class="chip" id="artistsToggle" type="button">⚙ Config</button></h2>
+    <div id="artistsCfg" hidden>
+      <form class="addrow" id="artistForm">
+        <input id="artistIn" placeholder="Add an artist, e.g. Justin Bieber" maxlength="40" autocomplete="off">
+        <button class="btn btn-gold" type="submit">+</button>
+      </form>
+      <div class="filters" id="artistList" style="margin-top:10px"></div>
+      <p class="hint">Each artist becomes a card: "Sing a … song" worth 20 points. Tap an artist to remove it.</p>
+    </div>
+    <p class="hint" id="artistsSummary"></p>
+  </section>
+  <section class="panel">
+    <h2>Rules</h2>
+    <div class="rules">
+      <label>Passing costs <input type="number" id="penalty" value="5" min="0"></label>
+      <label>Bonus per hand-over <input type="number" id="bonus" value="10" min="0"></label>
+      <label>Rounds (0 = endless) <input type="number" id="rounds" value="3" min="0"></label>
+      <label>Timer seconds (0 = off) <input type="number" id="timerSec" value="90" min="0"></label>
+    </div>
+    <p class="hint">Passing costs points. The card moves to the next player and is worth more. A round is over when every player has started one card.</p>
+  </section>
+  <div class="start"><button class="btn btn-gold" id="settingsDone">Save &amp; back</button></div>
+</div>
+
+<!-- PLAYERS SCREEN -->
+<div class="screen setup" id="scrPlayers">
+  <div class="topbar"><button class="btn btn-ghost" id="playersBack">← Back</button><span class="round">Players</span></div>
+  <section class="panel">
+    <h2>How many players?</h2>
+    <div class="count"><button class="btn btn-ghost" id="cntMinus">−</button><span class="n" id="cntVal">2</span><button class="btn btn-ghost" id="cntPlus">+</button></div>
+    <div class="names" id="names"></div>
+    <p class="hint">Turn order = this order. Names must be unique.</p>
+  </section>
+  <div class="start"><button class="btn btn-red" id="startBtn">Start game</button></div>
+</div>
+
+<!-- FINAL SCREEN -->
+<div class="screen" id="scrFinal">
+  <div class="final">
+    <div class="trophy">🏆</div>
+    <div class="round">Game over</div>
+    <div class="winner" id="winnerName"></div>
+    <div class="pts" id="winnerPts"></div>
+    <ol class="podium" id="podium"></ol>
+    <div class="actions">
+      <button class="btn btn-gold" id="againBtn">Play again (same players)</button>
+      <button class="btn btn-ghost" id="setupBtn">Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen grid" id="scrGame">
+  <section class="panel stage" id="stage">
+    <div class="topbar" style="width:100%;justify-content:space-between">
+      <span class="round" id="roundLbl"></span>
+      <div class="timer" id="timer" hidden><span id="timerVal">1:30</span><button class="btn btn-ghost" id="timerBtn">▶</button></div>
+      <span style="display:flex;gap:6px"><button class="btn btn-ghost" id="homeBtn">⌂</button><button class="btn btn-ghost" id="endBtn">End game</button></span>
+    </div>
+    <div class="turn">
+      <div class="who" id="who">Add players first</div>
+      <div class="sub" id="sub">At least 2 players, then draw a card.</div>
+    </div>
+
+    <div class="deck">
+      <div class="ghost g1"></div><div class="ghost g2"></div>
+      <div class="card" id="card">
+        <div class="face front">
+          <div class="frame">
+            <div class="corner tl">K<small>♥</small></div>
+            <div class="logo">KARAOKE<small>challenge</small></div>
+            <div class="corner br">K<small>♥</small></div>
+          </div>
+        </div>
+        <div class="face back">
+          <div class="frame">
+            <div class="corner tl" id="cTL">Q<small>♥</small></div>
+            <div class="pic" id="pic"></div>
+            <div class="cat" id="cat"></div>
+            <div class="text" id="text"></div>
+            <div class="worth">Worth <b id="worth">0</b></div>
+            <div class="picked" id="picked" hidden>🎲 <span>Player:</span> <b id="pickedName"></b> <button class="re" id="reroll" title="Pick again">↻</button></div>
+            <div class="chain" id="chain"></div>
+            <div class="corner br" id="cBR">Q<small>♥</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="btn btn-red" id="draw" disabled>Draw a card</button>
+      <button class="btn btn-green" id="done" hidden>✓ Done it</button>
+      <button class="btn btn-ghost" id="pass" hidden>Pass ➜ hand over</button>
+      <button class="btn btn-ghost" id="dice" hidden title="Pick a random player">🎲</button>
+    </div>
+
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <aside style="display:flex;flex-direction:column;gap:20px">
+    <section class="panel">
+      <h2>Scoreboard</h2>
+      <ul class="players" id="scoreboard"></ul>
+    </section>
+  </aside>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- Challenges: [Kategorie, Text, Schwierigkeit 1-3] ----
+const CATS = ["Classics","2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood","Voice","Performance","Duet & Group","Chaos","Trivia","Truth"];
+const CHALLENGES = [
+ // Classics
+ ["Classics","Sing a song from the 80s",1],
+ ["Classics","Sing a song from the 90s",1],
+ ["Classics","Sing a song released this year",2],
+ ["Classics","Sing a country song",1],
+ ["Classics","Sing a song from a movie soundtrack",2],
+ ["Classics","Sing a song by ABBA",1],
+ ["Classics","Sing a song in a language you don't speak",3],
+ ["Classics","Sing the song that played at your last birthday",2],
+ ["Classics","Sing a song your parents love",2],
+ ["Classics","Sing a Eurovision song",2],
+ ["Classics","Sing a boyband anthem",1],
+ ["Classics","Sing a song that makes you cry",2],
+ ["Classics","Sing a song you'd never admit to liking",2],
+ // 2000s
+ ["2000s","Sing a song from the 2000s",1],
+ ["2000s","Sing a Britney Spears song",1],
+ ["2000s","Sing a song by Eminem – rap it, don't read it",3],
+ ["2000s","Sing a Linkin Park song with full angst",2],
+ ["2000s","Sing a Shakira song – hips don't lie, so move them",2],
+ ["2000s","Sing a Black Eyed Peas song",1],
+ ["2000s","Sing an Avril Lavigne song",1],
+ ["2000s","Sing a Rihanna hit from the 2000s",1],
+ ["2000s","Sing an emo song like it's 2006 and nobody understands you",2],
+ ["2000s","Sing a Beyoncé song and do the Single Ladies dance",3],
+ ["2000s","Sing a Backstreet Boys or NSYNC song with the choreo",2],
+ ["2000s","Sing a Nelly song with a band-aid on your cheek (or pretend)",2],
+ ["2000s","Sing a song that was your MySpace profile song",2],
+ ["2000s","Sing a 2000s song that was on every school disco playlist",1],
+ ["2000s","Sing a Kelly Clarkson breakup anthem at full power",2],
+ ["2000s","Sing a Usher song with the R&B runs",3],
+ ["2000s","Sing a Green Day song from the 2000s",1],
+ ["2000s","Sing a Lady Gaga song from 2008–2009 with a dramatic pose",2],
+ ["2000s","Sing a 2000s ringtone song – the one everyone had on their flip phone",2],
+ // K-Pop
+ ["K-Pop","Sing 'Dynamite' by BTS with the disco moves",1],
+ ["K-Pop","Sing 'Butter' by BTS – smooth like butter, act like it",1],
+ ["K-Pop","Sing 'How You Like That' by BLACKPINK with the drop choreo",2],
+ ["K-Pop","Sing 'DDU-DU DDU-DU' and do the finger-gun move on every beat",2],
+ ["K-Pop","Sing 'Super Shy' by NewJeans – as shy as possible",1],
+ ["K-Pop","Sing 'Hype Boy' by NewJeans with the TikTok dance",2],
+ ["K-Pop","Sing 'Cupid' by FIFTY FIFTY – twin version with a partner",1],
+ ["K-Pop","Sing 'APT.' by ROSÉ & Bruno Mars – the group plays the drinking game part",1],
+ ["K-Pop","Sing 'Magnetic' by ILLIT",2],
+ ["K-Pop","Sing 'Supernova' by aespa",2],
+ ["K-Pop","Sing 'Love Dive' by IVE",2],
+ ["K-Pop","Sing 'After LIKE' by IVE with the disco strings sung out loud",2],
+ ["K-Pop","Sing 'God's Menu' by Stray Kids – cooking gestures mandatory",2],
+ ["K-Pop","Sing 'Fancy' by TWICE",1],
+ ["K-Pop","Sing 'TT' by TWICE and do the TT hands the whole time",1],
+ ["K-Pop","Sing 'Kill This Love' by BLACKPINK with a fake trumpet intro",2],
+ ["K-Pop","Sing 'Boy With Luv' by BTS as a duet – one sings Halsey's part",2],
+ ["K-Pop","Sing 'Fake Love' by BTS with maximum drama",2],
+ ["K-Pop","Sing 'Pink Venom' by BLACKPINK and rap Lisa's verse",3],
+ ["K-Pop","Sing 'Smart' by LE SSERAFIM with the lazy dance",2],
+ ["K-Pop","Sing 'Antifragile' by LE SSERAFIM",2],
+ ["K-Pop","Sing 'Sticky' by KISS OF LIFE",2],
+ ["K-Pop","Sing 'Whiplash' by aespa in full stage mode",2],
+ ["K-Pop","Sing 'Standing Next to You' by Jungkook with the Michael Jackson vibes",2],
+ ["K-Pop","Sing 'Seven' by Jungkook – clean version, or the group decides",1],
+ ["K-Pop","Sing 'Like Crazy' by Jimin",2],
+ ["K-Pop","Sing 'Ditto' by NewJeans in a dreamy whisper",1],
+ ["K-Pop","Sing 'Psycho' by Red Velvet",2],
+ ["K-Pop","Sing 'Bad Boy' by Red Velvet with attitude",2],
+ ["K-Pop","Sing 'Fantastic Baby' by BIGBANG – WOW FANTASTIC BABY at full volume",2],
+ ["K-Pop","Sing 'I Am the Best' by 2NE1",2],
+ ["K-Pop","Sing 'Gee' by Girls' Generation with the leg choreo",2],
+ ["K-Pop","Sing 'Sorry Sorry' by Super Junior with the hand rub",1],
+ ["K-Pop","Sing 'Ring Ding Dong' by SHINee",2],
+ ["K-Pop","Sing 'Growl' by EXO",2],
+ ["K-Pop","Sing 'Bboom Bboom' by MOMOLAND",1],
+ ["K-Pop","Sing 'Rush Hour' by Crush ft. j-hope",2],
+ ["K-Pop","Sing 'Ice Cream' by BLACKPINK & Selena Gomez as a duet",1],
+ ["K-Pop","Sing a K-Pop B-side that nobody in the room knows – 30 points if you pull it off",3],
+ ["K-Pop","Sing a K-Pop song and translate one line into your language on the spot",3],
+ ["K-Pop","Sing a K-Pop song while the group holds up light sticks (phones count)",1],
+ ["K-Pop","Sing the intro of a K-Pop song only – the group guesses the group",2],
+ ["K-Pop","Sing a girl-group song if you are a guy, or a boy-group song if you are a girl",2],
+ ["K-Pop","Sing a K-Pop song from the group the person on your left names",2],
+ ["K-Pop","Sing a song from KPop Demon Hunters",1],
+ ["K-Pop","Sing 'Golden' from KPop Demon Hunters – and hit the high note",3],
+ ["K-Pop","Sing 'Soda Pop' as the Saja Boys with two backup dancers",2],
+ ["K-Pop","Sing 'How It's Done' as HUNTR/X with the fight choreo",2],
+ ["K-Pop","Sing 'Your Idol' as a demon idol – full villain energy",2],
+ ["K-Pop","Sing 'Takedown' at the person you would banish to the demon world",2],
+ ["K-Pop","Sing 'Free' as a duet – Rumi and Jinu, the group picks who is who",2],
+ ["K-Pop","Sing 'What It Sounds Like' as the grand finale with the whole group as backup",2],
+ ["K-Pop","Sing a BTS song – any member's part",1],
+ ["K-Pop","Sing a BLACKPINK song and do the killing part choreo",2],
+ ["K-Pop","Sing the Korean lyrics of a K-Pop song without romanization",3],
+ ["K-Pop","Sing Gangnam Style with the horse dance",1],
+ ["K-Pop","Sing a K-Pop chorus while doing the point choreography",2],
+ ["K-Pop","Sing a TWICE or NewJeans song in full aegyo mode",2],
+ ["K-Pop","Rap a K-Pop rap verse – the group votes if it counts",3],
+ ["K-Pop","Sing a K-Pop song and hit the high note in the bridge",3],
+ ["K-Pop","Sing a Stray Kids or ATEEZ song with full performance energy",2],
+ ["K-Pop","Sing a K-Pop song while the group cheers the fanchant",2],
+ ["K-Pop","Pick a K-Pop song and split the lines: every player gets a part",1],
+ ["K-Pop","Sing a K-Pop ballad like the OST of a K-Drama finale",2],
+ ["K-Pop","Sing a 2nd-gen K-Pop hit (BIGBANG, Girls' Generation, 2NE1, SHINee)",2],
+ ["K-Pop","Do a K-Pop random play dance: sing along to whatever the group plays",3],
+ ["K-Pop","Sing a K-Pop song and end with a perfect idol ending pose",1],
+ // Disney
+ ["Disney","Sing 'Into the Unknown' from Frozen 2 – the call included",3],
+ ["Disney","Sing 'Do You Want to Build a Snowman' knocking on an imaginary door",1],
+ ["Disney","Sing 'Love Is an Open Door' as a duet with someone you just met",2],
+ ["Disney","Sing 'How Far I'll Go' from Moana",2],
+ ["Disney","Sing 'You're Welcome' as Maui with maximum ego",2],
+ ["Disney","Sing 'Shiny' as Tamatoa the crab, glittering and evil",2],
+ ["Disney","Sing 'We Don't Talk About Bruno' and give every player a character",2],
+ ["Disney","Sing 'Surface Pressure' from Encanto as Luisa flexing",2],
+ ["Disney","Sing 'Waiting on a Miracle' from Encanto",2],
+ ["Disney","Sing 'Part of Your World' from The Little Mermaid",2],
+ ["Disney","Sing 'Under the Sea' as Sebastian with a Caribbean accent",2],
+ ["Disney","Sing 'Poor Unfortunate Souls' as Ursula – body language mandatory",2],
+ ["Disney","Sing 'Kiss the Girl' to someone in the room",1],
+ ["Disney","Sing 'Be Our Guest' as Lumière",2],
+ ["Disney","Sing 'Beauty and the Beast' as a slow-dance duet",2],
+ ["Disney","Sing 'Gaston' and let the group shout the name",1],
+ ["Disney","Sing 'Circle of Life' with the intro chant",3],
+ ["Disney","Sing 'Can You Feel the Love Tonight'",1],
+ ["Disney","Sing 'I Just Can't Wait to Be King'",2],
+ ["Disney","Sing 'Be Prepared' as Scar",2],
+ ["Disney","Sing 'Friend Like Me' as the Genie – as fast as you can",3],
+ ["Disney","Sing 'Prince Ali' with the group as the parade",2],
+ ["Disney","Sing 'I'll Make a Man Out of You' from Mulan while doing push-ups",3],
+ ["Disney","Sing 'Reflection' from Mulan",2],
+ ["Disney","Sing 'Colors of the Wind' from Pocahontas",2],
+ ["Disney","Sing 'Go the Distance' from Hercules",2],
+ ["Disney","Sing 'Zero to Hero' with the group as the Muses",2],
+ ["Disney","Sing 'I Won't Say (I'm in Love)' from Hercules – deny everything",2],
+ ["Disney","Sing 'A Dream Is a Wish Your Heart Makes' from Cinderella",1],
+ ["Disney","Sing 'Bibbidi-Bobbidi-Boo' as the Fairy Godmother",1],
+ ["Disney","Sing 'When You Wish Upon a Star'",1],
+ ["Disney","Sing 'Once Upon a Dream' from Sleeping Beauty",2],
+ ["Disney","Sing 'I See the Light' from Tangled as a duet",2],
+ ["Disney","Sing 'When Will My Life Begin' from Tangled",2],
+ ["Disney","Sing 'Mother Knows Best' as Mother Gothel",2],
+ ["Disney","Sing 'Almost There' from The Princess and the Frog",2],
+ ["Disney","Sing 'Try Everything' from Zootopia",1],
+ ["Disney","Sing 'Remember Me' from Coco – make someone tear up",2],
+ ["Disney","Sing 'Un Poco Loco' from Coco",2],
+ ["Disney","Sing 'You've Got a Friend in Me' from Toy Story",1],
+ ["Disney","Sing 'The Bare Necessities' from The Jungle Book",1],
+ ["Disney","Sing 'I Wan'na Be Like You' as King Louie",2],
+ ["Disney","Sing 'Supercalifragilisticexpialidocious' without messing up",3],
+ ["Disney","Sing 'A Spoonful of Sugar' from Mary Poppins",1],
+ ["Disney","Sing 'Chim Chim Cher-ee' as a chimney sweep",2],
+ ["Disney","Sing 'Hakuna Matata' but replace every Hakuna Matata with your own catchphrase",2],
+ ["Disney","Sing 'Lava' from the Pixar short as a duet",2],
+ ["Disney","Sing 'This Is Halloween' from The Nightmare Before Christmas",2],
+ ["Disney","Sing 'What's This' as Jack Skellington",2],
+ ["Disney","Sing 'Strangers Like Me' from Tarzan",2],
+ ["Disney","Sing 'You'll Be in My Heart' from Tarzan",1],
+ ["Disney","Sing 'Wish' from the movie Wish",2],
+ ["Disney","Sing 'This Wish' – the group is the chorus",2],
+ ["Disney","Sing a Disney song but as a Disney villain would sing it",2],
+ ["Disney","Sing a Disney song as a duet with the person who knows it least",2],
+ ["Disney","Sing the Disney song the group picks – no passing allowed",3],
+ ["Disney","Sing a Disney Channel theme song (Hannah Montana, Phineas and Ferb, Kim Possible)",2],
+ ["Disney","Sing 'The Best of Both Worlds' as Hannah Montana",1],
+ ["Disney","Sing a song from a Disney movie",1],
+ ["Disney","Sing 'Let It Go' with the full Elsa arm sweep",2],
+ ["Disney","Sing a Disney villain song as evil as you can",2],
+ ["Disney","Sing a Disney duet – the group picks your partner",2],
+ ["Disney","Sing 'A Whole New World' on an imaginary magic carpet",2],
+ ["Disney","Sing a Disney song as if you're the sidekick, not the hero",2],
+ ["Disney","Sing a Moana song like you're standing on a boat in a storm",2],
+ ["Disney","Sing 'Hakuna Matata' with the group as your Timon and Pumbaa",1],
+ ["Disney","Sing a Disney song in an opera voice",3],
+ ["Disney","Sing a Disney song from a movie released before 1995",2],
+ ["Disney","Sing a Disney princess song as a grumpy dwarf",3],
+ ["Disney","Sing a Pixar song and try not to cry",2],
+ ["Disney","Sing a Disney song while acting out all the animals in it",2],
+ ["Disney","Sing a Disney song in a language other than English",3],
+ // High School Musical
+ ["High School Musical","Sing 'Breaking Free' as a duet – the group picks your Troy or Gabriella",2],
+ ["High School Musical","Sing 'We're All in This Together' and get the whole room doing the clap choreo",1],
+ ["High School Musical","Sing 'Bet On It' with Troy's angry golf course dance",3],
+ ["High School Musical","Sing 'Bop to the Top' as Sharpay – full diva, full sparkle",2],
+ ["High School Musical","Sing 'Get'cha Head in the Game' while dribbling an imaginary basketball",2],
+ ["High School Musical","Sing 'Start of Something New' like it's a ski lodge New Year's Eve",1],
+ ["High School Musical","Sing 'Stick to the Status Quo' and cast every player as a cafeteria clique",2],
+ ["High School Musical","Sing 'What I've Been Looking For' – first the Sharpay version, then the slow Troy & Gabriella version",3],
+ ["High School Musical","Sing 'Fabulous' lounging on a chair like it's a pool bed",2],
+ ["High School Musical","Sing 'You Are the Music in Me' with the piano intro sung out loud",2],
+ ["High School Musical","Sing 'Gotta Go My Own Way' as a dramatic breakup scene with someone in the room",2],
+ ["High School Musical","Sing 'Can I Have This Dance' and actually waltz with a partner",2],
+ ["High School Musical","Sing 'I Don't Dance' as Chad vs. Ryan – baseball moves included",3],
+ ["High School Musical","Sing 'Now or Never' with Wildcats chants from the group",2],
+ ["High School Musical","Sing any HSM song as Ryan with a hat trick at the end",2],
+ // Word Hunt – the song must contain this word
+ ["Word Hunt","Sing a song with the word 'BABY' in it",1],
+ ["Word Hunt","Sing a song with the word 'FIRE' in it",1],
+ ["Word Hunt","Sing a song with the word 'DANCE' in it",1],
+ ["Word Hunt","Sing a song with the word 'NIGHT' in it",1],
+ ["Word Hunt","Sing a song with the word 'HEART' in it",1],
+ ["Word Hunt","Sing a song with the word 'SUMMER' in it",1],
+ ["Word Hunt","Sing a song with the word 'CRAZY' in it",1],
+ ["Word Hunt","Sing a song with the word 'PARTY' in it",1],
+ ["Word Hunt","Sing a song with the word 'MONEY' in it",2],
+ ["Word Hunt","Sing a song with the word 'RAIN' in it",2],
+ ["Word Hunt","Sing a song with the word 'SORRY' in it",2],
+ ["Word Hunt","Sing a song with the word 'HELLO' in it",1],
+ ["Word Hunt","Sing a song with the word 'FRIDAY' in it",2],
+ ["Word Hunt","Sing a song with the word 'ANGEL' in it",2],
+ ["Word Hunt","Sing a song with the word 'DIAMOND' in it",2],
+ ["Word Hunt","Sing a song with the word 'ROCK' in it",1],
+ ["Word Hunt","Sing a song with the word 'SHAKE' in it",2],
+ ["Word Hunt","Sing a song with the word 'STAR' in it",1],
+ ["Word Hunt","Sing a song with the word 'HOME' in it",2],
+ ["Word Hunt","Sing a song with the word 'GIRL' in it",1],
+ ["Word Hunt","Sing a song with the word 'BOY' in it",1],
+ ["Word Hunt","Sing a song with the word 'SUN' in it",2],
+ ["Word Hunt","Sing a song with the word 'FOREVER' in it",2],
+ ["Word Hunt","Sing a song with the word 'TONIGHT' in it",1],
+ ["Word Hunt","Sing a song with the word 'KISS' in it",2],
+ ["Word Hunt","Sing a song with the word 'BEAUTIFUL' in it",1],
+ ["Word Hunt","Sing a song with the word 'DREAM' in it",2],
+ ["Word Hunt","Sing a song with the word 'HEAVEN' in it",2],
+ ["Word Hunt","Sing a song with the word 'RUN' in it",2],
+ ["Word Hunt","Sing a song with the word 'CHEESE' in it – good luck",3],
+ ["Word Hunt","Sing a song with the word 'BANANA' in it",3],
+ ["Word Hunt","Sing a song with the word 'UMBRELLA' in it",1],
+ ["Word Hunt","Sing a song with the word 'PIZZA' in it",3],
+ ["Word Hunt","Sing a song with the word 'MONDAY' in it",3],
+ ["Word Hunt","Sing a song with the word 'ROBOT' in it",3],
+ ["Word Hunt","The group picks a word – sing a song that contains it",3],
+ // Artists
+ ["Artists","Sing a Justin Bieber song",1],
+ ["Artists","Sing a Ariana Grande song",2],
+ ["Artists","Sing a Taylor Swift song",1],
+ ["Artists","Sing a Ed Sheeran song",1],
+ ["Artists","Sing a Adele song",2],
+ ["Artists","Sing a Billie Eilish song",1],
+ ["Artists","Sing a The Weeknd song",2],
+ ["Artists","Sing a Dua Lipa song",1],
+ ["Artists","Sing a Harry Styles song",1],
+ ["Artists","Sing a Olivia Rodrigo song",1],
+ ["Artists","Sing a Bruno Mars song",2],
+ ["Artists","Sing a Lady Gaga song",2],
+ ["Artists","Sing a Rihanna song",1],
+ ["Artists","Sing a Beyoncé song",2],
+ ["Artists","Sing a Katy Perry song",1],
+ ["Artists","Sing a Miley Cyrus song",1],
+ ["Artists","Sing a Sabrina Carpenter song",1],
+ ["Artists","Sing a Shawn Mendes song",1],
+ ["Artists","Sing a Post Malone song",2],
+ ["Artists","Sing a Drake song",2],
+ ["Artists","Sing a Sia song",3],
+ ["Artists","Sing a Whitney Houston song",3],
+ ["Artists","Sing a Mariah Carey song",3],
+ ["Artists","Sing a Michael Jackson song",2],
+ ["Artists","Sing a Queen song",2],
+ ["Artists","Sing a Coldplay song",1],
+ ["Artists","Sing a Maroon 5 song",1],
+ ["Artists","Sing a Imagine Dragons song",1],
+ ["Artists","Sing a Elton John song",2],
+ ["Artists","Sing a Bon Jovi song",1],
+ ["Artists","Sing a Nirvana song",2],
+ ["Artists","Sing a Oasis song",1],
+ ["Artists","Sing a Selena Gomez song",1],
+ ["Artists","Sing a Doja Cat song",2],
+ ["Artists","Sing a Charli XCX song",2],
+ ["Artists","Sing a Chappell Roan song",2],
+ ["Artists","Sing a Benson Boone song",2],
+ ["Artists","Sing a Teddy Swims song",2],
+ ["Artists","Sing a Lewis Capaldi song",2],
+ ["Artists","Sing a Alicia Keys song",2],
+ ["Artists","Sing a Céline Dion song",3],
+ ["Artists","Sing a Elvis Presley song",2],
+ ["Artists","Sing a The Beatles song",1],
+ ["Artists","Sing a Bob Marley song",1],
+ ["Artists","Sing a Spice Girls song",1],
+ ["Artists","Sing a One Direction song",1],
+ ["Artists","Sing a song by the artist the person on your left names",2],
+ ["Artists","Sing a song by an artist who has the same first letter as your name",2],
+ ["Artists","Sing a song by an artist who is no longer alive",2],
+ ["Artists","Sing a song by an artist you have seen live",2],
+ // Genres
+ ["Genres","Sing a rock anthem",1],
+ ["Genres","Sing a hip-hop track – rap the verse, sing the hook",2],
+ ["Genres","Sing a country song with a fake southern accent",1],
+ ["Genres","Sing a reggae song",2],
+ ["Genres","Sing a heavy metal song – growl optional, headbang mandatory",2],
+ ["Genres","Sing an EDM / dance track – build-up and drop included",2],
+ ["Genres","Sing a jazz standard",3],
+ ["Genres","Sing an R&B slow jam",2],
+ ["Genres","Sing a punk rock song at full speed",2],
+ ["Genres","Sing a reggaeton hit",2],
+ ["Genres","Sing a Latin pop song",2],
+ ["Genres","Sing a gospel song and get the group clapping",2],
+ ["Genres","Sing a blues song about something that annoyed you today",3],
+ ["Genres","Sing a folk or acoustic singer-songwriter song",1],
+ ["Genres","Sing a song from a Broadway musical",2],
+ ["Genres","Sing an opera aria – or the best fake one you can",3],
+ ["Genres","Sing a 90s Eurodance hit",1],
+ ["Genres","Sing a grunge song",2],
+ ["Genres","Sing an indie pop song",1],
+ ["Genres","Sing an Afrobeats track",2],
+ ["Genres","Sing a Christmas song – no matter what month it is",1],
+ ["Genres","Sing a 70s disco track",1],
+ ["Genres","Sing a 60s classic",2],
+ ["Genres","Sing an anime opening",3],
+ ["Genres","Sing a French chanson",3],
+ ["Genres","Sing a Bollywood song",3],
+ ["Genres","Sing a German song (Schlager, Rammstein, Nena – your choice)",2],
+ ["Genres","Sing a trap or drill track",3],
+ ["Genres","Sing a boy band ballad",1],
+ ["Genres","Sing a pop-punk song like it's 2005",1],
+ ["Genres","Sing a lullaby – put the room to sleep",1],
+ ["Genres","Sing a soul classic (Motown, Aretha, Otis)",2],
+ ["Genres","Sing a synth-pop song",1],
+ ["Genres","Sing a sea shanty",2],
+ ["Genres","Sing a national anthem – any country",2],
+ ["Genres","Sing a TikTok viral sound as a full song",2],
+ ["Genres","Sing a song from a video game",2],
+ ["Genres","Sing a movie theme with no lyrics – you make them up",3],
+ // Years
+ ["Years","Sing a song released in 1970",3],
+ ["Years","Sing a song released in 1971",3],
+ ["Years","Sing a song released in 1972",3],
+ ["Years","Sing a song released in 1973",3],
+ ["Years","Sing a song released in 1974",3],
+ ["Years","Sing a song released in 1975",3],
+ ["Years","Sing a song released in 1976",3],
+ ["Years","Sing a song released in 1977",3],
+ ["Years","Sing a song released in 1978",3],
+ ["Years","Sing a song released in 1979",3],
+ ["Years","Sing a song released in 1980",3],
+ ["Years","Sing a song released in 1981",3],
+ ["Years","Sing a song released in 1982",3],
+ ["Years","Sing a song released in 1983",3],
+ ["Years","Sing a song released in 1984",3],
+ ["Years","Sing a song released in 1985",3],
+ ["Years","Sing a song released in 1986",3],
+ ["Years","Sing a song released in 1987",3],
+ ["Years","Sing a song released in 1988",3],
+ ["Years","Sing a song released in 1989",3],
+ ["Years","Sing a song released in 1990",2],
+ ["Years","Sing a song released in 1991",2],
+ ["Years","Sing a song released in 1992",2],
+ ["Years","Sing a song released in 1993",2],
+ ["Years","Sing a song released in 1994",2],
+ ["Years","Sing a song released in 1995",2],
+ ["Years","Sing a song released in 1996",2],
+ ["Years","Sing a song released in 1997",2],
+ ["Years","Sing a song released in 1998",2],
+ ["Years","Sing a song released in 1999",2],
+ ["Years","Sing a song released in 2000",2],
+ ["Years","Sing a song released in 2001",2],
+ ["Years","Sing a song released in 2002",2],
+ ["Years","Sing a song released in 2003",2],
+ ["Years","Sing a song released in 2004",2],
+ ["Years","Sing a song released in 2005",1],
+ ["Years","Sing a song released in 2006",1],
+ ["Years","Sing a song released in 2007",1],
+ ["Years","Sing a song released in 2008",1],
+ ["Years","Sing a song released in 2009",1],
+ ["Years","Sing a song released in 2010",1],
+ ["Years","Sing a song released in 2011",1],
+ ["Years","Sing a song released in 2012",1],
+ ["Years","Sing a song released in 2013",1],
+ ["Years","Sing a song released in 2014",1],
+ ["Years","Sing a song released in 2015",1],
+ ["Years","Sing a song released in 2016",1],
+ ["Years","Sing a song released in 2017",1],
+ ["Years","Sing a song released in 2018",1],
+ ["Years","Sing a song released in 2019",1],
+ ["Years","Sing a song released in 2020",1],
+ ["Years","Sing a song released in 2021",1],
+ ["Years","Sing a song released in 2022",1],
+ ["Years","Sing a song released in 2023",1],
+ ["Years","Sing a song released in 2024",1],
+ ["Years","Sing a song released in 2025",1],
+ ["Years","Sing a song from the year the person on your left was born",2],
+ ["Years","Sing a song from the year you finished school",2],
+ ["Years","Sing a song from the year of your first phone",2],
+ ["Years","The group picks a year – sing a song from it",3],
+ // Mood
+ ["Mood","Sing a love song",1],
+ ["Mood","Sing a sad song",1],
+ ["Mood","Sing a breakup song",1],
+ ["Mood","Sing a happy feel-good song",1],
+ ["Mood","Sing an angry song",2],
+ ["Mood","Sing a song about missing someone",2],
+ ["Mood","Sing a song about partying all night",1],
+ ["Mood","Sing a song about friendship",1],
+ ["Mood","Sing a song about being in love for the first time",2],
+ ["Mood","Sing a motivational song that makes everyone want to work out",1],
+ ["Mood","Sing a song about revenge or getting even",2],
+ ["Mood","Sing a song about home or family",2],
+ ["Mood","Sing a song about summer and sunshine",1],
+ ["Mood","Sing a song about feeling lonely",2],
+ ["Mood","Sing a song about being unstoppable",1],
+ ["Mood","Sing a song about jealousy",3],
+ ["Mood","Sing a song about growing up or getting older",2],
+ ["Mood","Sing a song about saying goodbye",2],
+ ["Mood","Sing a song about freedom",2],
+ ["Mood","Sing a song about a road trip or driving",2],
+ ["Mood","Sing a song about hope",2],
+ ["Mood","Sing a song about regret",3],
+ ["Mood","Sing a song about being confident and looking good",1],
+ ["Mood","Sing a song that makes you want to cry in the car",2],
+ ["Mood","Sing a song about apologizing",2],
+ ["Mood","Sing a song about a secret",3],
+ ["Mood","Sing a song about waking up in the morning",2],
+ ["Mood","Sing a song that describes your current mood",1],
+ ["Mood","Sing a song for someone who hurt you",2],
+ ["Mood","Sing a song about chasing a dream",1],
+ ["Mood","Sing a song about the beach or the ocean",2],
+ // Voice
+ ["Voice","Sing the whole song as an opera singer",2],
+ ["Voice","Sing like a robot",2],
+ ["Voice","Sing the song in slow motion",2],
+ ["Voice","Sing the song at double speed",3],
+ ["Voice","Sing one octave higher than you actually can",2],
+ ["Voice","Sing any song in your deepest voice",2],
+ ["Voice","Sing the song as if you're absolutely furious",2],
+ ["Voice","Whisper the entire song",1],
+ ["Voice","Sing like a news anchor reading the lyrics",2],
+ ["Voice","Sing with your mouth full (water, chips, whatever)",3],
+ ["Voice","Sing the song in a baby voice",2],
+ ["Voice","Sing the song in an accent of your choice",2],
+ ["Voice","Sing a rap song as a slow ballad",3],
+ ["Voice","Sing a ballad as death metal",3],
+ ["Voice","Sing like your teacher or your boss",2],
+ // Performance
+ ["Performance","Sing with your eyes closed while dancing",1],
+ ["Performance","Sing on one leg until the song ends",2],
+ ["Performance","Sing while walking backwards around the room",2],
+ ["Performance","Sing while doing push-ups",3],
+ ["Performance","Impersonate the original artist as closely as you can",2],
+ ["Performance","Sing the song as a musical number with huge gestures",2],
+ ["Performance","Rock concert mode – air guitar is mandatory",1],
+ ["Performance","Sing with sunglasses on and full rockstar attitude",1],
+ ["Performance","Sing without moving – only your face is allowed to act",2],
+ ["Performance","Sing while staring into someone's eyes the whole time",2],
+ ["Performance","Sing as a boyband choreo with two backup dancers",2],
+ ["Performance","Sing on your knees as a dramatic love confession to someone in the room",2],
+ ["Performance","Sing like it's the finale of a talent show, tears included",2],
+ ["Performance","Use an object (phone, cup) as a mic stand – you can't touch it",3],
+ // Duet & Group
+ ["Duet & Group","Sing a duet where one of you only sings the high notes and the other only the low ones",3],
+ ["Duet & Group","Sing a duet with someone who has to sing while you both hold hands the entire time",1],
+ ["Duet & Group","The group hums the melody, you sing the lyrics on top",2],
+ ["Duet & Group","Sing a duet – but you switch roles halfway through the song",2],
+ ["Duet & Group","Sing a song as a trio: you pick two backup singers who only sing 'ooh' and 'aah'",2],
+ ["Duet & Group","Sing a duet where your partner is allowed to change the lyrics and you must follow",3],
+ ["Duet & Group","Sing a duet with someone you just met",2],
+ ["Duet & Group","Choose a song everyone can sing along to",1],
+ ["Duet & Group","Sing a duet – but alternate word by word",3],
+ ["Duet & Group","Sing a duet with the person on your left",1],
+ ["Duet & Group","Sing a love duet with the person who fits it least",2],
+ ["Duet & Group","You sing, the group only gets the chorus – and you cue them",1],
+ ["Duet & Group","Battle: you vs. an opponent, same song, the group picks the winner",2],
+ ["Duet & Group","Sing one verse, then pass the mic – everyone sings a line",1],
+ ["Duet & Group","Sing a duet standing back to back",2],
+ ["Duet & Group","Conduct the group like a choir on a song of your choice",2],
+ // Chaos
+ ["Chaos","The group picks your song – no refusing",2],
+ ["Chaos","Sing without saying 'I', 'you' or 'love' – replace them with 'cheese'",3],
+ ["Chaos","Make up new lyrics: the song must be about the person on your right",3],
+ ["Chaos","Sing the song without looking at the lyrics",2],
+ ["Chaos","Sing while the group tries to distract you with questions",2],
+ ["Chaos","Sing whatever is on the radio right now – turn it on",2],
+ ["Chaos","Sing the chorus of a song you only half know",2],
+ ["Chaos","Sing the last song you played on your phone",2],
+ ["Chaos","Replace every 'baby' in the song with a player's name",2],
+ ["Chaos","Turn the song into a commercial for an object in the room",3],
+ ["Chaos","Sing a song picked by the youngest person in the room",2],
+ ["Chaos","Every time someone claps, you must change tempo",3],
+ ["Chaos","Sing nursery rhyme lyrics to the melody of a pop hit",3],
+ ["Chaos","Perform the song as a flight attendant's safety announcement",3],
+ // Trivia
+ ["Trivia","Sing the opening lines of 3 different songs – the group must name all 3 artists",2],
+ ["Trivia","Sing a song released the year you were born",2],
+ ["Trivia","Sing a song with an animal in the title",1],
+ ["Trivia","Sing a song with a girl's name in the title",1],
+ ["Trivia","Sing a song where the title is a question",2],
+ ["Trivia","Sing a song that was a Eurovision winner",3],
+ ["Trivia","Sing a one-hit wonder – the group decides if it counts",2],
+ ["Trivia","Hum a song – the group has 30 seconds to guess it, or it doesn't count",2],
+ ["Trivia","Sing one line from 5 different songs that contain 'love'",2],
+ ["Trivia","Name and sing three songs by an artist the group picks",3],
+ ["Trivia","Sing the second verse of a song, without the chorus",3],
+ ["Trivia","Lip sync: perform with no sound, the group must guess the song",2],
+ ["Trivia","Sing a TV show theme – the group must guess the show",1],
+ ["Trivia","Sing a song whose title starts with the first letter of your name",2],
+ ["Trivia","Sing a song with a city in it",1],
+ ["Trivia","Sing a song with a number in the title",1],
+ ["Trivia","Sing a song with a color in the title",1],
+ // Truth
+ ["Truth","Sing the song you play on repeat when nobody is watching",1],
+ ["Truth","Sing the song that was your ringtone the longest",1],
+ ["Truth","Sing a song you know every single word to – prove it without lyrics",2],
+ ["Truth","Sing the song you would choose for your walk-out at a boxing match",1],
+ ["Truth","Sing the song that reminds you of your best friend",2],
+ ["Truth","Sing a song you have sung in the car with your parents",1],
+ ["Truth","Sing the song you would send to your ex right now",2],
+ ["Truth","Sing the song from the last concert you went to",2],
+ ["Truth","Sing a song that reminds you of your first job",2],
+ ["Truth","Sing the song you danced to at your last party",1],
+ ["Truth","Sing a song from your most-played playlist",1],
+ ["Truth","Sing a song you pretended to hate but secretly loved",2],
+ ["Truth","Sing the song that got you through a hard time",2],
+ ["Truth","Sing a song that reminds you of a holiday you took",2],
+ ["Truth","Sing the song you would want as your theme song in a movie about your life",2],
+ ["Truth","Sing a song you learned from a TV show or a movie",1],
+ ["Truth","Sing the song you'd sing to win someone back",2],
+ ["Truth","Sing the last song that made you cry – and say why",3],
+ ["Truth","Sing a song that reminds you of someone in this room – they guess who",3],
+ ["Truth","Sing your favorite song",1],
+ ["Truth","Sing your favorite song from when you were a kid",1],
+ ["Truth","Sing your favorite song of this year",1],
+ ["Truth","Sing the favorite song of the person on your right – if you know it",2],
+ ["Truth","Sing the song you secretly sing in the shower",1],
+ ["Truth","Sing the song you'd want playing when you walk into a room like a boss",1],
+ ["Truth","Sing a song that reminds you of your first love",2],
+ ["Truth","Sing a song you associate with the person on your right",2],
+ ["Truth","Sing your go-to song when you're driving alone",1],
+ ["Truth","Sing the song that was playing during the most embarrassing moment of your life",2],
+ ["Truth","Sing the song you'd pick for your wedding first dance",2],
+ ["Truth","Sing a song that describes your last relationship",2],
+ ["Truth","Sing the first song you ever sang at karaoke",1],
+ ["Truth","Sing your ultimate guilty pleasure song",2],
+ ["Truth","Sing the song that played during your first kiss (or should have)",2],
+ ["Truth","Sing a song you used to rehearse in front of the mirror",2],
+ ["Truth","Sing a song for your crush – without revealing who it is",2],
+ ["Truth","Sing the song you want played at your own funeral",2],
+ ["Truth","Sing a song that describes your life right now",2],
+ ["Truth","Sing a song you cried through after a breakup",2],
+];
+const BASE = {1:10,2:20,3:30};
+
+// ---- State ----
+const KEY="karaoke-challenge-en-v1";
+let S = {players:[], turn:0, cats:[...CATS], penalty:5, bonus:10, current:null, log:[], used:[], customArtists:[], rounds:3, timerSec:90, round:1, started:0, screen:"home"};
+let draft=null;
+try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.players){S={...S,...s};for(const c of ["2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood"])if(!S.cats.includes(c))S.cats.push(c);if(!S.customArtists)S.customArtists=[];if(S.rounds==null)S.rounds=3;if(S.timerSec==null)S.timerSec=90;if(!S.round)S.round=1;if(!S.started)S.started=0;if(!["home","settings","players","game","final"].includes(S.screen))S.screen="home";if(S.screen==="setup")S.screen="home";}}catch(e){}
+const $=id=>document.getElementById(id);
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200)}
+function fmt(n){return (n>0?"+":"")+n}
+
+// ---- Illustrations ----
+const ARTIST_TYPE={
+  diva:["ariana grande","taylor swift","adele","billie eilish","dua lipa","olivia rodrigo","lady gaga","rihanna","beyoncé","katy perry","miley cyrus","sabrina carpenter","sia","whitney houston","mariah carey","selena gomez","doja cat","charli xcx","chappell roan","alicia keys","céline dion","britney spears","avril lavigne","shakira","kelly clarkson","nelly"],
+  rapper:["drake","post malone","eminem","kanye","travis scott","nicki minaj","cardi b","snoop","jay-z","50 cent","black eyed peas","usher"],
+  rockstar:["queen","nirvana","oasis","bon jovi","green day","linkin park","coldplay","imagine dragons","maroon 5","the beatles","guns","ac/dc","foo fighters","metallica"],
+  crooner:["justin bieber","ed sheeran","the weeknd","harry styles","bruno mars","shawn mendes","elton john","benson boone","teddy swims","lewis capaldi","michael jackson","jungkook","jimin"],
+  boyband:["one direction","backstreet boys","nsync","bts","stray kids","ateez","exo","shinee","super junior","bigbang","seventeen","enhypen","saja boys"],
+  girlgroup:["spice girls","blackpink","twice","newjeans","ive","aespa","le sserafim","illit","red velvet","girls' generation","2ne1","fifty fifty","kiss of life","momoland","huntr/x"],
+  legend:["elvis presley","elvis"],
+  reggae:["bob marley"],
+  soul:["aretha","otis","stevie wonder","james brown"],
+};
+const R=(w,id)=>[new RegExp("\\b(?:"+w+")\\b","i"),id];
+const RULES=[
+  R("breaking free|gabriella","duet"),R("all in this together|clap(?:ping|s)?|gospel","clap"),R("bet on it|golf|angry|furious|revenge|getting even|hurt you|jealous\\w*","fist"),
+  R("bop to the top|sharpay|diva|tiara|princess","tiara"),R("head in the game|basketball|dribbling|wildcats|now or never|hsm|high school musical","basketball"),
+  R("status quo|cafeteria","pizza"),R("fabulous|pool|lounging|sunbed","sun"),R("piano|keys","piano"),R("i don't dance|baseball","baseball"),R("hat trick|hat","hat"),
+  R("avril|acoustic|folk|singer-songwriter","guitar"),R("rihanna","umbrella"),R("emo|angst","heartbroken"),R("beyonc\\w*|ring|wedding|marry","ring"),
+  R("birthday|cake","cake"),R("picks a word|contains it","quote"),R("hums?|humming","notes"),R("one-hit wonder","trophy"),R("win someone back|relationship","heart"),R("favou?rite","star"),R("karaoke","mic"),R("funeral","candle"),R("describes your life|life right now","sunrise"),R("golden","star"),R("soda pop","soda"),
+  R("demon hunters|takedown|huntr/x|hunters|battle|versus|vs\\.","swords"),R("golden|whiplash|supernova|fancy|star|shine|sparkle|idol","star"),
+  R("surface pressure|luisa|push-ups|workout|flex(?:ing)?|work out|antifragile","dumbbell"),R("talk about bruno|encanto|waiting on a miracle","house"),
+  R("friend like me|prince ali|whole new world|magic carpet|genie|aladdin","lamp"),R("reflection|mirror","mirror"),R("mulan|man out of you","sword"),
+  R("national anthem|anthem|eurovision|flag","flag"),R("movie|film|soundtrack|cinema","clapper"),R("lip sync|lip-sync|lips|lipsync","lips"),
+  R("country|southern|cowboy","cowboy"),R("metal|death metal|headbang","skull"),R("edm|electronic|headphones|beat","headphones"),R("jazz|saxophone","sax"),R("reggaeton|latin|salsa|maracas","maracas"),
+  R("road trip|driving|drive|car|highway","car"),R("lonely|alone|missing someone|miss you|missing","alone"),R("embarrassing|embarrassed|blush","blushface"),R("shower","shower"),
+  R("finished school|school|graduat\\w*|teacher","gradcap"),R("first job|job|office|work","briefcase"),R("flight attendant|plane|airplane","plane"),R("holiday you took|trip|travel|suitcase|flight","suitcase"),
+  R("best friend|friend(?:ship)?|friends|hold hands|handshake","handshake"),R("unstoppable|boss|walk into a room|champion|winner|win","trophy"),R("boxing|walk-out|fight","boxing"),
+  R("news anchor|anchor|commercial|announcement|advert\\w*","megaphone"),R("teacher|boss|tie|suit","tie"),R("eyes closed|staring|stare|eyes|watching|only your face","eye"),R("one leg|dancing|dance","dance"),
+  R("motivational|motivation|unstoppable|rocket|chasing","rocket"),R("happy|feel-good|smile|laugh|fun","smile"),R("love song|in love|first love|romantic|love|crush|confession|on your knees","heart"),
+  R("backstreet|nsync|boyband|boy band|one direction|chorus|choir|backup|trio|everyone can sing|sing along|whole group|the group is|group as|ooh","chorus"),
+  R("linkin park|green day|pop-punk|punk|grunge|rock|guitar|air guitar|nirvana|oasis","guitar"),R("eminem|rap(?:ping)?|hip-hop|trap|drill|rapper","cap"),R("britney|mic stand|pass the mic|concert","mic"),
+  // --- Disney song titles / characters ---
+  R("into the unknown|let it go|snowman|open door|elsa|frozen|ski lodge|new year","snowflake"),
+  R("moana|how far i'll go|on a boat|boat","boat"),R("you're welcome|maui","fish"),R("shiny|tamatoa|sebastian|crab","crab"),
+  R("under the sea|part of your world|little mermaid|kiss the girl","fish"),R("ursula|poor unfortunate|villain|scar|mother knows best|gothel|be prepared|demon|evil","villain"),
+  R("be our guest|lumi(?:è|e)re|candle","candle"),R("beauty and the beast","rose"),R("gaston","mug"),
+  R("circle of life|can you feel the love|hakuna matata|lion king|growl|timon","lion"),R("i just can't wait to be king|i am the best|crown|king louie","crown"),
+  R("colors of the wind|pocahontas","feather"),R("hercules|go the distance|zero to hero|i won't say","lightning"),
+  R("cinderella|bibbidi|fairy godmother|a dream is a wish|wish upon a star|wish|this wish","wand"),R("once upon a dream|sleeping beauty|lullaby|sleep|bed","bed"),
+  R("tangled|i see the light|when will my life begin|lantern","lantern"),R("princess and the frog|almost there|frog","frog"),
+  R("zootopia|try everything|animal(?:s)?|animals in it","paw"),R("coco|remember me|un poco loco","skull"),R("toy story|friend in me","cowboy"),
+  R("jungle book|bare necessities|wan'na be like you|banana","banana"),R("supercali\\w*|spoonful|poppins|umbrella|rain","umbrella"),R("chim chim|chimney","broom"),
+  R("lava|volcano","volcano"),R("halloween|skellington|what's this|nightmare before","pumpkin"),R("tarzan|strangers like me|you'll be in my heart|jungle","leaf"),
+  R("hannah montana|disney channel|best of both worlds|tv show|series|theme song|tv","tv"),R("grumpy dwarf|dwarf","hat"),R("pixar","clapper"),R("sidekick","group"),
+  // --- K-Pop titles ---
+  R("dynamite|disco|eurodance|after like|school disco|abba","discoball"),R("butter","butter"),R("cupid|love dive|sticky|rush hour","heart"),R("ddu-du|finger-gun|sorry sorry|hand rub|standing next to you|hello|goodbye|wave","hand"),
+  R("super shy|ditto|whisper|shy|never admit|secretly|pretended","shh"),R("god's menu|cooking|chef","chef"),R("\\bTT\\b|cry|cried|tears?|sad","tear"),
+  R("kill this love|fake love|breakup|break-up|heartbreak|your ex|\\bex\\b|sorry|apolog\\w*|regret|goodbye|gotta go my own way","heartbroken"),
+  R("pink venom|psycho|snake","snake"),R("fantastic baby|fire|burn","fire"),R("ring ding dong|bell","bell"),R("ice cream","icecream"),R("gangnam|horse","horse"),
+  R("soda pop","soda"),R("seven|calendar|year|born|monday|friday","calendar"),R("apt\\.|drinking game","mug"),R("magnetic","magnet"),R("smart|sunglasses|glasses|shades|confident|boss","glasses"),
+  R("bad boy|attitude","glasses"),R("like crazy|crazy|dizzy","dizzy"),R("boy with luv|duet|partner|back to back|hold hands|waltz","duet"),
+  R("hype boy|tiktok|viral","phone"),R("light sticks?|lightstick|fanchant|k-pop|kpop|bts|blackpink|twice|newjeans|aespa|\\bive\\b|stray kids|ateez|red velvet|le sserafim|illit|momoland|exo|shinee|2ne1|bigbang|girls' generation|super junior|jungkook|jimin|aegyo|point choreography|random play|ending pose|korean|k-drama|b-side|saja boys","lightstick"),
+  // --- 2000s / artists specifics ---
+  R("shakira|hips|single ladies|choreo(?:graphy)?|dance|dancing|dancers|bboom|gee|leg choreo|shake|twerk|moves?","hips"),R("black eyed peas|party|partying","party"),
+  R("nelly|band-aid|hard time|got you through","bandage"),R("myspace|computer","computer"),R("kelly clarkson","heartbroken"),R("usher|r&b|slow jam|soul|motown","heart"),
+  R("lady gaga|dramatic pose|pose","star"),R("ringtone|flip phone|phone|playlist|on repeat|most-played","phone"),R("80s|cassette|indie","cassette"),R("90s|2000s|cd","disc"),
+  // --- HSM ---
+  // --- Word Hunt words ---
+  R("baby|kid|child|nursery|youngest","baby"),R("night|tonight|moon|midnight","moon"),R("heart","heart"),R("summer|sun|sunshine|beach|holiday|vacation","sun"),
+  R("money|rich|cash","money"),R("angel|heaven","angel"),R("diamond","diamond"),R("home|family|house","house"),R("girl|girl's name","girl"),R("boy","boy"),R("forever","infinity"),
+  R("kiss","lips"),R("beautiful|flower|looking good","flower"),R("dream|chasing a dream|cloud","cloud"),R("run|running|walk(?:ing)?|backwards","sneakers"),R("cheese","cheese"),R("pizza|mouth full|chips","pizza"),R("robot","robot"),
+  // --- Genres ---
+  R("reggae|bob marley","leaf"),R("blues|harmonica","harmonica"),R("broadway|musical|opera|aria|impersonate|imitate|theater|theatre|mood","masks"),R("afrobeats?|drum|drums","drum"),
+  R("christmas|xmas|gift|present","tree"),R("60s|peace|hippie","peace"),R("german|schlager|beer|oktoberfest","beer"),R("synth(?:-pop)?|keyboard|keytar","keyboard"),
+  R("anime|video game|game","gamepad"),R("french|chanson|bollywood|language|accent|translate|spanish|another language|foreign","globe"),R("sea shanty|shanty|ocean|sea|wave|waves","wave"),
+  // --- Years / Truth / Mood / misc ---
+  R("growing up|getting older|older|age|time|hourglass","hourglass"),R("freedom|free|bird|fly","bird"),R("secret","lock"),R("hope|morning|sunrise|waking up|wake up","sunrise"),
+  // --- Voice / Performance / Chaos / Trivia ---
+  R("slow motion|slow(?:ly)?|snail","snail"),R("double speed|as fast as|fast|speed","lightning"),R("octave higher|higher|high note|high notes","arrowup"),R("deepest|deep|low notes|lower","arrowdown"),
+  R("talent show|casting|finale|finals","trophy"),R("radio","radio"),R("questions?|guess|guesses|riddle|who is who|which","question"),R("lyrics|verse|word by word|every single word|make up new lyrics|write|paper|lines?","paper"),
+  R("tempo|seconds|timer|clock|30 seconds","clock"),R("city|town|skyline","city"),R("number|count","hash"),R("colou?r","palette"),R("first letter|letter|alphabet","letter"),
+  R("three|3 different|artist the group picks|artists","mic"),R("group|everyone|players|room|person|someone|opponent","group"),
+];
+const CAT_PIC={"Classics":"disc","2000s":"disc","K-Pop":"lightstick","Disney":"castle","High School Musical":"basketball","Word Hunt":"quote","Artists":"mic","Genres":"notes","Years":"calendar","Mood":"masks","Voice":"mic","Performance":"dance","Duet & Group":"duet","Chaos":"dizzy","Trivia":"question","Truth":"shh"};
+function artistType(text){const t=text.toLowerCase();for(const [k,list] of Object.entries(ARTIST_TYPE))if(list.some(a=>t.includes(a)))return k;return null}
+function pic(cat,text){
+  if(cat==="Artists"){const m=/^sing an? (.+?) song$/i.exec(text);if(m){const k=artistType(m[1])||(/\b(the|s)\b|band|boys|girls/i.test(m[1])?"band":"crooner");return{sil:true,id:"s-"+k}}}
+  for(const [re,id] of RULES)if(re.test(text)){if(cat==="Disney"&&(id==="clapper"||id==="group"))return{sil:false,id:"i-castle"};if(cat==="Years"&&id==="calendar")return{sil:false,id:"i-calendar"};return{sil:false,id:"i-"+id}}
+  return{sil:false,id:"i-"+(CAT_PIC[cat]||"mic")};
+}
+function calSvg(label){const fs=label.length>4?15:19;return `<svg viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="14" width="52" height="40" rx="4"/><path d="M6 26h52M20 8v10M44 8v10"/></g><text x="32" y="47" text-anchor="middle" font-family="Anton,Impact,sans-serif" font-size="${fs}" letter-spacing="1" fill="currentColor">${esc(label)}</text></svg>`}
+function tagSvg(id,label){const n=label.length;const fs=n>11?8:n>8?10:n>5?12:13;return `<svg viewBox="0 0 64 74"><use href="#${id}" x="8" y="0" width="48" height="48"/><rect x="4" y="54" width="56" height="18" rx="9" fill="currentColor"/><text x="32" y="67" text-anchor="middle" font-family="Anton,Impact,sans-serif" font-size="${fs}" letter-spacing=".8" fill="#f7f3ea">${esc(label.toUpperCase())}</text></svg>`}
+function setPic(cat,text){const p=pic(cat,text);const el=$("pic");el.className="pic"+(p.sil?" sil":"");
+  const holder=S.current&&S.players[S.current.holder];
+  const yr=/\b((?:19|20)\d{2})\b/.exec(text), dec=/\b(\d0s|2000s)\b/i.exec(text), word=/'([A-Z][A-Z ]{1,14})'/.exec(text);
+  let html=null;
+  if(p.sil){html=null}
+  else if(p.id==="i-calendar"&&yr)html=calSvg(yr[1]);
+  else if(/\bthis year\b/i.test(text))html=calSvg(String(new Date().getFullYear()));
+  else if(p.id==="i-calendar"&&/\b(born|finished school|first phone|picks a year)\b/i.test(text))html=calSvg("?");
+  else if((p.id==="i-cassette"||p.id==="i-disc"||p.id==="i-calendar")&&dec)html=calSvg(dec[1].toUpperCase());
+  else if(cat==="Word Hunt")html=tagSvg(p.id,word?word[1]:"?");
+  else if(/first letter of your name/i.test(text)&&holder)html=tagSvg(p.id,holder.name.trim().charAt(0).toUpperCase());
+  else if(yr)html=tagSvg(p.id,yr[1]);
+  else if(dec)html=tagSvg(p.id,dec[1]);
+  el.innerHTML=html||`<svg><use href="#${p.id}"/></svg>`}
+
+// ---- Random player picker ----
+const PLAYER_RE=/\b(the )?(person|player|someone|the one) (on|to) your (left|right)\b/gi;
+function otherPlayer(exclude){const pool=S.players.map((p,i)=>i).filter(i=>i!==exclude);if(!pool.length)return null;return pool[Math.floor(Math.random()*pool.length)]}
+function needsPick(text){return PLAYER_RE.test(text)}
+function resolveText(){const c=S.current;if(!c)return;const raw=c.raw||c.text;c.raw=raw;
+  if(needsPick(raw)){if(c.pick==null||c.pick===c.holder)c.pick=otherPlayer(c.holder);const n=c.pick!=null?S.players[c.pick].name:"someone";c.text=raw.replace(PLAYER_RE,n)}
+  else{c.pick=null;c.text=raw}}
+function sfxDraw(){try{sfx.draw()}catch(e){}}
+function rollPick(){const c=S.current;if(!c)return;const prev=c.pick;let n=otherPlayer(c.holder);if(S.players.length>2&&n===prev)n=otherPlayer(c.holder);c.pick=n;resolveText();save();render();sfxDraw()}
+
+// ---- Render ----
+function render(){
+  $("penalty").value=S.penalty; $("bonus").value=S.bonus; $("rounds").value=S.rounds; $("timerSec").value=S.timerSec;
+  document.querySelector("header").style.display=S.screen==="home"?"none":"";
+  document.querySelectorAll(".screen").forEach(el=>el.classList.toggle("on",el.id==={home:"scrHome",settings:"scrSettings",players:"scrPlayers",game:"scrGame",final:"scrFinal"}[S.screen]));
+  $("homeResume").hidden=!(S.current&&S.players.length>=2);
+  const allD=deck(), nD=allD.filter(c=>S.cats.includes(c[0])).length;
+  $("homeStat").textContent=`${nD} cards · ${S.cats.length} categories`;
+  $("homeStart").disabled=S.cats.length===0;
+  if(S.screen==="players"){
+    if(!draft)draft=S.players.length>=2?S.players.map(p=>p.name):["",""];
+    $("cntVal").textContent=draft.length;$("cntMinus").disabled=draft.length<=2;$("cntPlus").disabled=draft.length>=12;
+    if($("names").children.length!==draft.length){$("names").innerHTML=draft.map((n,i)=>`<label><span class="rank">${i+1}</span><input data-n="${i}" maxlength="18" placeholder="Player ${i+1}" value="${esc(n)}" autocomplete="off"></label>`).join("")}
+    const names=draft.map(n=>n.trim()),lower=names.map(n=>n.toLowerCase());
+    [...$("names").querySelectorAll("input")].forEach((inp,i)=>inp.classList.toggle("bad",!!names[i]&&lower.indexOf(lower[i])!==i));
+    $("startBtn").disabled=names.some(n=>!n)||new Set(lower).size!==lower.length;
+  }
+  $("roundLbl").textContent=S.rounds?`Round ${S.round} of ${S.rounds}`:`Round ${S.round}`;
+  $("timer").hidden=!S.timerSec||!S.current;
+  // players
+  const sorted=[...S.players].map((p,i)=>({...p,i})).sort((a,b)=>b.score-a.score);
+  if($("players"))$("players").innerHTML=sorted.map((p,r)=>`<li class="${p.i===S.turn?'active':''}">
+    <span class="rank">${r+1}</span><span class="name">${esc(p.name)}</span>
+    <span class="pts ${p.score<0?'neg':''}">${p.score}</span>
+    <button class="x" data-del="${p.i}" title="Remove player">×</button></li>`).join("")
+    || `<li style="color:var(--muted)">No players yet</li>`;
+  $("scoreboard").innerHTML=sorted.map((p,r)=>`<li class="${p.i===(S.current?S.current.holder:S.turn)?'active':''}"><span class="rank">${r+1}</span><span class="name">${esc(p.name)}</span><span class="pts ${p.score<0?'neg':''}">${p.score}</span></li>`).join("");
+  // filters
+  const all=deck(), cnt={};all.forEach(c=>cnt[c[0]]=(cnt[c[0]]||0)+1);
+  $("filters").innerHTML=CATS.map(c=>`<button class="chip ${S.cats.includes(c)?'on':''}" data-cat="${c}">${c}<b>${cnt[c]||0}</b></button>`).join("");
+  const nDeck=all.filter(c=>S.cats.includes(c[0])).length;
+  $("deckSize").textContent=`${nDeck} cards in your deck (${S.cats.length} of ${CATS.length} categories).`;
+  // custom artists
+  $("artistList").innerHTML=S.customArtists.map((a,i)=>`<button class="chip on" data-art="${i}" title="Remove">${esc(a)} ×</button>`).join("")||`<span class="hint" style="margin:0">No custom artists yet</span>`;
+  const nBuiltin=CHALLENGES.filter(c=>c[0]==="Artists").length;
+  $("artistsSummary").textContent=`${nBuiltin} built-in artists + ${S.customArtists.length} of your own.`;
+  // turn text
+  const ok=S.players.length>=2;
+  const cur=S.players[S.turn];
+  if(S.current){
+    const holder=S.players[S.current.holder];
+    $("who").innerHTML=`<b>${esc(holder.name)}</b>, you\'re up`;
+    $("sub").textContent=S.current.chain>0?`Passed on by ${S.current.passedBy.map(i=>S.players[i].name).join(", ")} – now worth ${S.current.worth} points!`:`Accept the challenge or pass it on.`;
+    $("draw").hidden=true;$("done").hidden=false;$("pass").hidden=false;
+    $("pass").textContent=S.current.chain>=S.players.length-1?"Pass (card is discarded)":"Pass ➜ hand over";
+    $("done").textContent=`✓ Done it (+${S.current.worth})`;
+    resolveText();setPic(S.current.cat,S.current.raw||S.current.text);
+    $("picked").hidden=S.current.pick==null;if(S.current.pick!=null)$("pickedName").textContent=S.players[S.current.pick].name;
+    $("dice").hidden=false;
+    $("cat").textContent=S.current.cat; $("text").textContent=S.current.text; $("worth").textContent=S.current.worth;
+    $("chain").textContent=S.current.chain>0?`Passed on ${S.current.chain}× – bonus!`:"";
+    const rank=["J","Q","K"][S.current.diff-1];
+    $("cTL").innerHTML=$("cBR").innerHTML=`${rank}<small>♥</small>`;
+    $("card").classList.add("flipped");
+  }else{
+    $("who").innerHTML=ok?`Up next: <b>${esc(cur.name)}</b>`:"Add players first";
+    $("sub").textContent=ok?"Draw a card and go.":"At least 2 players, then draw a card.";
+    $("draw").hidden=false;$("draw").disabled=!ok||S.cats.length===0;$("done").hidden=true;$("pass").hidden=true;$("dice").hidden=true;$("picked").hidden=true;
+    $("card").classList.remove("flipped");
+  }
+  $("log").innerHTML=S.log.slice(0,8).map(l=>`<li>${l}</li>`).join("");
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+// ---- Actions ----
+if($("addForm"))$("addForm").onsubmit=e=>{e.preventDefault();const n=$("nameIn").value.trim();if(!n)return;
+  if(S.players.some(p=>p.name.toLowerCase()===n.toLowerCase())){toast("That name is already taken");return}
+  S.players.push({name:n,score:0});$("nameIn").value="";save();render()};
+if($("players"))$("players").onclick=e=>{const b=e.target.closest("[data-del]");if(!b)return;
+  const i=+b.dataset.del;S.players.splice(i,1);if(S.turn>=S.players.length)S.turn=0;save();render()};
+$("filters").onclick=e=>{const b=e.target.closest("[data-cat]");if(!b)return;const c=b.dataset.cat;
+  S.cats=S.cats.includes(c)?S.cats.filter(x=>x!==c):[...S.cats,c];save();render()};
+$("artistsToggle").onclick=()=>{$("artistsCfg").hidden=!$("artistsCfg").hidden;if(!$("artistsCfg").hidden)$("artistIn").focus()};
+$("artistForm").onsubmit=e=>{e.preventDefault();const a=$("artistIn").value.trim();if(!a)return;
+  if(S.customArtists.some(x=>x.toLowerCase()===a.toLowerCase())){toast("Already added");return}
+  S.customArtists.push(a);$("artistIn").value="";save();render();toast(`Added: Sing a ${a} song`)};
+$("artistList").onclick=e=>{const b=e.target.closest("[data-art]");if(!b)return;S.customArtists.splice(+b.dataset.art,1);save();render()};
+$("rounds").onchange=e=>{S.rounds=Math.max(0,+e.target.value||0);save();render()};
+$("timerSec").onchange=e=>{S.timerSec=Math.max(0,+e.target.value||0);save();render()};
+$("catsAll").onclick=()=>{S.cats=S.cats.length===CATS.length?[]:[...CATS];save();render()};
+$("homeStart").onclick=()=>{draft=null;S.screen="players";save();render();$("names").querySelector("input")?.focus()};
+$("homeSettings").onclick=()=>{S.screen="settings";save();render()};
+$("homeResume").onclick=()=>{S.screen="game";save();render();startTimer()};
+$("settingsBack").onclick=$("settingsDone").onclick=()=>{S.screen="home";save();render()};
+$("playersBack").onclick=()=>{S.screen="home";save();render()};
+$("cntMinus").onclick=()=>{if(draft.length>2){draft.pop();render()}};
+$("cntPlus").onclick=()=>{if(draft.length<12){draft.push("");render();[...$("names").querySelectorAll("input")].pop().focus()}};
+$("names").oninput=e=>{const i=+e.target.dataset.n;if(!isNaN(i)){draft[i]=e.target.value;render()}};
+$("names").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();const inputs=[...$("names").querySelectorAll("input")];const i=inputs.indexOf(e.target);if(i<inputs.length-1)inputs[i+1].focus();else if(!$("startBtn").disabled)$("startBtn").click()}};
+$("startBtn").onclick=()=>{if(draft)S.players=draft.map(n=>({name:n.trim(),score:0}));S.screen="game";S.round=1;S.started=0;S.turn=0;S.current=null;S.log=[];S.used=[];S.players.forEach(p=>p.score=0);save();render();sfx.start()};
+$("endBtn").onclick=()=>{if(!confirm("End the game now and show the results?"))return;stopTimer();finish()};
+$("homeBtn").onclick=()=>{stopTimer();S.screen="home";save();render()};
+$("againBtn").onclick=()=>{$("startBtn").onclick()};
+$("setupBtn").onclick=()=>{S.screen="home";S.current=null;save();render()};
+function finish(){S.current=null;S.screen="final";$("card").classList.remove("flipped");
+  const sorted=[...S.players].sort((a,b)=>b.score-a.score);const w=sorted[0];
+  $("winnerName").textContent=w?w.name:"—";$("winnerPts").textContent=w?`${w.score} points`:"";
+  $("podium").innerHTML=sorted.map(p=>`<li><span>${esc(p.name)}</span><span>${p.score}</span></li>`).join("");
+  save();render();sfx.win()}
+$("penalty").onchange=e=>{S.penalty=Math.max(0,+e.target.value||0);save()};
+$("bonus").onchange=e=>{S.bonus=Math.max(0,+e.target.value||0);save()};
+
+function deck(){return CHALLENGES.concat(S.customArtists.map(a=>["Artists","Sing a "+a+" song",2]))}
+$("draw").onclick=()=>{
+  const all=deck();
+  let pool=all.filter(c=>S.cats.includes(c[0])&&!S.used.includes(c[1]));
+  if(!pool.length){S.used=[];pool=all.filter(c=>S.cats.includes(c[0]));toast("Deck reshuffled")}
+  const [cat,text,diff]=pool[Math.floor(Math.random()*pool.length)];S.used.push(text);
+  S.current={cat,text,raw:text,pick:null,diff,worth:BASE[diff],holder:S.turn,starter:S.turn,chain:0,passedBy:[]};
+  save();render();sfx.draw();startTimer();
+};
+$("reroll").onclick=e=>{e.stopPropagation();rollPick()};
+$("dice").onclick=()=>{const c=S.current;if(!c)return;if(c.pick!=null){rollPick();return}const i=otherPlayer(c.holder);if(i==null)return;c.pick=i;save();render();sfxDraw();toast(`🎲 ${S.players[i].name}!`)};
+$("done").onclick=()=>{
+  const p=S.players[S.current.holder];p.score+=S.current.worth;
+  S.log.unshift(`<b>${esc(p.name)}</b> hat's gemacht: <span class="up">${fmt(S.current.worth)}</span> – ${esc(S.current.text)}`);
+  toast(`${p.name} +${S.current.worth} points!`);sfx.ok();
+  endCard();
+};
+$("pass").onclick=()=>{
+  const p=S.players[S.current.holder];p.score-=S.penalty;
+  S.log.unshift(`<b>${esc(p.name)}</b> passed: <span class="down">${fmt(-S.penalty)}</span>`);
+  sfx.pass();S.current.passedBy.push(S.current.holder);
+  S.current.chain++;
+  if(S.current.chain>=S.players.length){
+    S.log.unshift(`Everyone passed – card discarded: ${esc(S.current.text)}`);
+    toast("Everyone passed – card gone");endCard();return;
+  }
+  S.current.holder=(S.current.holder+1)%S.players.length;
+  S.current.worth+=S.bonus;startTimer();
+  toast(`Over to ${S.players[S.current.holder].name} – now worth ${S.current.worth} points!`);
+  save();render();
+};
+function endCard(){
+  stopTimer();
+  S.turn=(S.current.starter+1)%S.players.length;
+  S.current=null;S.started++;
+  if(S.started>=S.players.length){S.started=0;S.round++;
+    if(S.rounds&&S.round>S.rounds){setTimeout(finish,400);save();$("card").classList.remove("flipped");return}
+    toast(`Round ${S.round}`)}
+  save();
+  $("card").classList.remove("flipped");
+  setTimeout(render,350);
+}
+if($("resetScores"))$("resetScores").onclick=()=>{if(!confirm("Reset all scores to 0?"))return;S.players.forEach(p=>p.score=0);S.log=[];S.current=null;S.turn=0;S.used=[];save();render()};
+if($("resetAll"))$("resetAll").onclick=()=>{if(!confirm("New game? All players and scores will be deleted."))return;S={players:[],turn:0,cats:[...CATS],penalty:S.penalty,bonus:S.bonus,current:null,log:[],used:[],customArtists:S.customArtists};save();render()};
+
+// ---- Timer ----
+let tLeft=0,tId=null;
+function fmtT(n){return Math.floor(n/60)+":"+String(n%60).padStart(2,"0")}
+function paintTimer(){$("timerVal").textContent=fmtT(tLeft);$("timer").classList.toggle("warn",tLeft<=10&&tLeft>0);$("timerBtn").textContent=tId?"⏸":"▶"}
+function startTimer(){stopTimer();if(!S.timerSec)return;tLeft=S.timerSec;paintTimer();tId=setInterval(()=>{tLeft--;paintTimer();if(tLeft===10)sfx.tick();if(tLeft<=0){stopTimer();sfx.buzz();toast("Time's up! Done or pass?")}},1000);paintTimer()}
+function stopTimer(){if(tId)clearInterval(tId);tId=null;paintTimer()}
+$("timerBtn").onclick=()=>{if(tId){stopTimer()}else if(tLeft>0){tId=setInterval(()=>{tLeft--;paintTimer();if(tLeft<=0){stopTimer();sfx.buzz();toast("Time's up!")}},1000);paintTimer()}else startTimer()};
+
+// ---- Sounds (Web Audio, no files needed) ----
+const sfx=(()=>{let ctx;const ac=()=>{try{ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();if(ctx.state==="suspended")ctx.resume();return ctx}catch(e){return null}};
+  const tone=(f,t,d,type="sine",g=.18)=>{const c=ac();if(!c)return;const o=c.createOscillator(),v=c.createGain();o.type=type;o.frequency.value=f;v.gain.setValueAtTime(g,c.currentTime+t);v.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+d);o.connect(v).connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+d+.05)};
+  return{
+    draw(){tone(520,0,.08,"triangle");tone(780,.08,.12,"triangle")},
+    ok(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.09,.18,"triangle"))},
+    pass(){tone(330,0,.15,"sawtooth",.12);tone(220,.15,.25,"sawtooth",.12)},
+    tick(){tone(1200,0,.05,"square",.08)},
+    buzz(){tone(140,0,.5,"sawtooth",.2)},
+    start(){[392,523,659].forEach((f,i)=>tone(f,i*.1,.15,"triangle"))},
+    win(){[523,659,784,1047,784,1047,1319].forEach((f,i)=>tone(f,i*.12,.25,"triangle"))},
+  }})();
+
+// ---- PWA ----
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
+let deferredInstall=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;const b=document.getElementById("installBtn");if(b){b.hidden=false;b.onclick=()=>{deferredInstall.prompt();deferredInstall=null;b.hidden=true}}});
+
+render();
+if(S.current&&S.screen==="game")startTimer();
+</script>
+
+</body>
+</html>
