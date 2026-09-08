@@ -428,7 +428,7 @@ h1 span{color:var(--red-2)}
             <div class="cat" id="cat"></div>
             <div class="text" id="text"></div>
             <div class="worth">Worth <b id="worth">0</b></div>
-            <div class="picked" id="picked" hidden>🎲 <span>Player:</span> <b id="pickedName"></b> <button class="re" id="reroll" title="Pick again">↻</button></div>
+            <div class="picked" id="picked" hidden>🎲 <span id="pickedLbl">Player:</span> <b id="pickedName"></b> <button class="re" id="reroll" title="Pick again">↻</button></div>
             <div class="chain" id="chain"></div>
             <div class="corner br" id="cBR">Q<small>♥</small></div>
           </div>
@@ -440,7 +440,7 @@ h1 span{color:var(--red-2)}
       <button class="btn btn-red" id="draw" disabled>Draw a card</button>
       <button class="btn btn-green" id="done" hidden>✓ Done it</button>
       <button class="btn btn-ghost" id="pass" hidden>Pass ➜ hand over</button>
-      <button class="btn btn-ghost" id="dice" hidden title="Pick a random player">🎲</button>
+      <button class="btn btn-ghost" id="dice" hidden title="Pick a random player">🎲 Pick player</button>
     </div>
 
     <ul class="log" id="log"></ul>
@@ -1105,10 +1105,13 @@ function setPic(cat,text){const p=pic(cat,text);const el=$("pic");el.className="
 // ---- Random player picker ----
 const PLAYER_RE=/\b(the )?(person|player|someone|the one) (on|to) your (left|right)\b/gi;
 function otherPlayer(exclude){const pool=S.players.map((p,i)=>i).filter(i=>i!==exclude);if(!pool.length)return null;return pool[Math.floor(Math.random()*pool.length)]}
-function needsPick(text){return PLAYER_RE.test(text)}
+const PARTNER_RE=/(duet|partner|opponent|someone (you just met|in the room|who has to sing)|the person who|hold hands|back to back|battle|vs.|waltz|slow-dance|twin version|duo)/i;
+function needsPick(text){PLAYER_RE.lastIndex=0;return PLAYER_RE.test(text)}
+function needsPartner(text){return PARTNER_RE.test(text)}
 function resolveText(){const c=S.current;if(!c)return;const raw=c.raw||c.text;c.raw=raw;
   if(needsPick(raw)){if(c.pick==null||c.pick===c.holder)c.pick=otherPlayer(c.holder);const n=c.pick!=null?S.players[c.pick].name:"someone";c.text=raw.replace(PLAYER_RE,n)}
-  else{c.pick=null;c.text=raw}}
+  else if(needsPartner(raw)){if(c.pick==null||c.pick===c.holder)c.pick=otherPlayer(c.holder);c.text=raw}
+  else{if(!c.manual)c.pick=null;c.text=raw}}
 function sfxDraw(){try{sfx.draw()}catch(e){}}
 function rollPick(){const c=S.current;if(!c)return;const prev=c.pick;let n=otherPlayer(c.holder);if(S.players.length>2&&n===prev)n=otherPlayer(c.holder);c.pick=n;resolveText();save();render();sfxDraw()}
 
@@ -1159,7 +1162,7 @@ function render(){
     $("pass").textContent=S.current.chain>=S.players.length-1?"Pass (card is discarded)":"Pass ➜ hand over";
     $("done").textContent=`✓ Done it (+${S.current.worth})`;
     resolveText();setPic(S.current.cat,S.current.raw||S.current.text);
-    $("picked").hidden=S.current.pick==null;if(S.current.pick!=null)$("pickedName").textContent=S.players[S.current.pick].name;
+    $("picked").hidden=S.current.pick==null;if(S.current.pick!=null){$("pickedName").textContent=S.players[S.current.pick].name;$("pickedLbl").textContent=needsPartner(S.current.raw||S.current.text)?"Partner:":"Player:"}
     $("dice").hidden=false;
     $("cat").textContent=S.current.cat; $("text").textContent=S.current.text; $("worth").textContent=S.current.worth;
     $("chain").textContent=S.current.chain>0?`Passed on ${S.current.chain}× – bonus!`:"";
@@ -1224,7 +1227,7 @@ $("draw").onclick=()=>{
   save();render();sfx.draw();startTimer();
 };
 $("reroll").onclick=e=>{e.stopPropagation();rollPick()};
-$("dice").onclick=()=>{const c=S.current;if(!c)return;if(c.pick!=null){rollPick();return}const i=otherPlayer(c.holder);if(i==null)return;c.pick=i;save();render();sfxDraw();toast(`🎲 ${S.players[i].name}!`)};
+$("dice").onclick=()=>{const c=S.current;if(!c)return;if(c.pick!=null){rollPick();return}const i=otherPlayer(c.holder);if(i==null)return;c.pick=i;c.manual=true;save();render();sfxDraw();toast(`🎲 ${S.players[i].name}!`)};
 $("done").onclick=()=>{
   const p=S.players[S.current.holder];p.score+=S.current.worth;
   S.log.unshift(`<b>${esc(p.name)}</b> hat's gemacht: <span class="up">${fmt(S.current.worth)}</span> – ${esc(S.current.text)}`);
