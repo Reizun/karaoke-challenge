@@ -143,6 +143,11 @@ h1 span{color:var(--red-2)}
 .start .btn{width:100%;font-size:18px;padding:16px}
 .topbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar .btn{padding:8px 12px;font-size:13px}
+/* sound */
+.soundrow{display:flex;gap:10px;align-items:center}
+.soundrow .btn{white-space:nowrap}
+.soundrow input[type=range]{flex:1;accent-color:var(--gold);height:32px}
+.volval{font-family:Anton,sans-serif;font-size:18px;min-width:44px;text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
 /* timer */
 .timer{font-family:Anton,sans-serif;font-size:34px;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--gold);display:flex;align-items:center;gap:10px}
 .timer.warn{color:var(--red-2);animation:blink .5s steps(2) infinite}
@@ -380,6 +385,15 @@ h1 span{color:var(--red-2)}
     </div>
     <p class="hint">Passing costs points. The card moves to the next player and is worth more. A round is over when every player has started one card.</p>
   </section>
+  <section class="panel">
+    <h2>Sound</h2>
+    <div class="soundrow">
+      <button class="btn btn-ghost" id="muteBtn">🔊 Sound on</button>
+      <input type="range" id="volume" min="0" max="100" step="5" aria-label="Volume">
+      <span class="volval" id="volVal">70%</span>
+    </div>
+    <p class="hint">Card draw, done, pass, timer and winner sounds.</p>
+  </section>
   <div class="start"><button class="btn btn-gold" id="settingsDone">Save &amp; back</button></div>
 </div>
 
@@ -416,7 +430,7 @@ h1 span{color:var(--red-2)}
     <div class="topbar" style="width:100%;justify-content:space-between">
       <span class="round" id="roundLbl"></span>
       <div class="timer" id="timer" hidden><span id="timerVal">1:30</span><button class="btn btn-ghost" id="timerBtn">▶</button></div>
-      <span style="display:flex;gap:6px"><button class="btn btn-ghost" id="homeBtn">⌂</button><button class="btn btn-ghost" id="endBtn">End game</button></span>
+      <span style="display:flex;gap:6px"><button class="btn btn-ghost" id="homeBtn">⌂</button><button class="btn btn-ghost" id="muteBtn2" title="Mute">🔊</button><button class="btn btn-ghost" id="endBtn">End game</button></span>
     </div>
     <div class="turn">
       <div class="who" id="who">Add players first</div>
@@ -1009,9 +1023,9 @@ const BASE = {1:10,2:20,3:30};
 
 // ---- State ----
 const KEY="karaoke-challenge-en-v1";
-let S = {players:[], turn:0, cats:[...CATS], penalty:5, bonus:10, current:null, disabledArtists:[], log:[], used:[], customArtists:[], rounds:3, timerSec:90, round:1, started:0, screen:"home"};
+let S = {players:[], turn:0, cats:[...CATS], penalty:5, bonus:10, current:null, disabledArtists:[], log:[], used:[], customArtists:[], rounds:3, timerSec:90, round:1, started:0, screen:"home", volume:0.7, muted:false};
 let draft=null;
-try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.players){S={...S,...s};for(const c of ["2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood"])if(!S.cats.includes(c))S.cats.push(c);if(!Array.isArray(S.disabledArtists))S.disabledArtists=[];if(!S.customArtists)S.customArtists=[];if(S.rounds==null)S.rounds=3;if(S.timerSec==null)S.timerSec=90;if(!S.round)S.round=1;if(!S.started)S.started=0;if(!["home","settings","players","game","final"].includes(S.screen))S.screen="home";if(S.screen==="setup")S.screen="home";}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.players){S={...S,...s};for(const c of ["2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood"])if(!S.cats.includes(c))S.cats.push(c);if(!Array.isArray(S.disabledArtists))S.disabledArtists=[];if(!S.customArtists)S.customArtists=[];if(S.rounds==null)S.rounds=3;if(S.volume==null)S.volume=.7;if(S.muted==null)S.muted=false;if(S.timerSec==null)S.timerSec=90;if(!S.round)S.round=1;if(!S.started)S.started=0;if(!["home","settings","players","game","final"].includes(S.screen))S.screen="home";if(S.screen==="setup")S.screen="home";}}catch(e){}
 const $=id=>document.getElementById(id);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200)}
@@ -1145,6 +1159,8 @@ function render(){
   }
   $("roundLbl").textContent=S.rounds?`Round ${S.round} of ${S.rounds}`:`Round ${S.round}`;
   $("timer").hidden=!S.timerSec||!S.current;
+  $("volume").value=Math.round(S.volume*100);$("volVal").textContent=Math.round(S.volume*100)+"%";
+  $("muteBtn").textContent=S.muted?"🔇 Muted":"🔊 Sound on";$("muteBtn2").textContent=S.muted?"🔇":"🔊";$("muteBtn2").title=S.muted?"Unmute":"Mute";
   // players
   const sorted=[...S.players].map((p,i)=>({...p,i})).sort((a,b)=>b.score-a.score);
   if($("players"))$("players").innerHTML=sorted.map((p,r)=>`<li class="${p.i===S.turn?'active':''}">
@@ -1205,6 +1221,10 @@ $("artistList").onclick=e=>{const b=e.target.closest("[data-art]");if(!b)return;
 $("builtinList").onclick=e=>{const b=e.target.closest("[data-builtin]");if(!b)return;const a=b.dataset.builtin;
   S.disabledArtists=artistOff(a)?S.disabledArtists.filter(x=>x.toLowerCase()!==a.toLowerCase()):[...S.disabledArtists,a];save();render()};
 $("artistsAll").onclick=()=>{const all=builtinArtists();S.disabledArtists=all.some(artistOff)?[]:all;save();render()};
+const toggleMute=()=>{S.muted=!S.muted;save();render();if(!S.muted)sfx.draw();toast(S.muted?"Sound off":"Sound on")};
+$("muteBtn").onclick=toggleMute;$("muteBtn2").onclick=toggleMute;
+$("volume").oninput=e=>{S.volume=Math.max(0,Math.min(1,(+e.target.value||0)/100));$("volVal").textContent=Math.round(S.volume*100)+"%";if(S.volume>0&&S.muted){S.muted=false;$("muteBtn").textContent="🔊 Sound on";$("muteBtn2").textContent="🔊"}};
+$("volume").onchange=e=>{save();render();sfx.tick()};
 $("rounds").onchange=e=>{S.rounds=Math.max(0,+e.target.value||0);save();render()};
 $("timerSec").onchange=e=>{S.timerSec=Math.max(0,+e.target.value||0);save();render()};
 $("catsAll").onclick=()=>{S.cats=S.cats.length===CATS.length?[]:[...CATS];save();render()};
@@ -1288,7 +1308,7 @@ $("timerBtn").onclick=()=>{if(tId){stopTimer()}else if(tLeft>0){tId=setInterval(
 
 // ---- Sounds (Web Audio, no files needed) ----
 const sfx=(()=>{let ctx;const ac=()=>{try{ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();if(ctx.state==="suspended")ctx.resume();return ctx}catch(e){return null}};
-  const tone=(f,t,d,type="sine",g=.18)=>{const c=ac();if(!c)return;const o=c.createOscillator(),v=c.createGain();o.type=type;o.frequency.value=f;v.gain.setValueAtTime(g,c.currentTime+t);v.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+d);o.connect(v).connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+d+.05)};
+  const tone=(f,t,d,type="sine",g=.18)=>{if(S.muted||!(S.volume>0))return;g=g*S.volume/0.7;const c=ac();if(!c)return;const o=c.createOscillator(),v=c.createGain();o.type=type;o.frequency.value=f;v.gain.setValueAtTime(g,c.currentTime+t);v.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+d);o.connect(v).connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+d+.05)};
   return{
     draw(){tone(520,0,.08,"triangle");tone(780,.08,.12,"triangle")},
     ok(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.09,.18,"triangle"))},
