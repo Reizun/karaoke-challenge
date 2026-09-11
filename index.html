@@ -102,6 +102,8 @@ h1 span{color:var(--red-2)}
 .filters{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:6px 11px;border-radius:999px;background:var(--ground);color:var(--muted);font-size:13px;font-weight:700;border:2px solid transparent}
 .chip.on{color:var(--ink);border-color:var(--gold)}
+.chip .del{display:inline-block;margin-left:8px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.12);color:var(--muted);font-size:14px;line-height:1.4}
+.chip .del:hover{background:var(--red-2);color:#fff}
 .rules{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px}
 .rules label{display:flex;flex-direction:column;gap:4px;color:var(--muted)}
 .rules input{padding:8px 10px;border-radius:8px;border:0;background:var(--ground);color:var(--ink);font:inherit;font-size:15px}
@@ -362,9 +364,9 @@ h1 span{color:var(--red-2)}
   <section class="panel">
     <h2 style="display:flex;justify-content:space-between;align-items:center">Artists <button class="chip" id="artistsToggle" type="button">⚙ Config</button></h2>
     <div id="artistsCfg" hidden>
-      <p class="hint" style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">Built-in artists <button class="chip" id="artistsAll" type="button">All / none</button></p>
+      <p class="hint" style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">Built-in artists <span style="display:flex;gap:6px"><button class="chip" id="artistsRestore" type="button" hidden>↩ Restore</button><button class="chip" id="artistsAll" type="button">All / none</button></span></p>
       <div class="filters" id="builtinList"></div>
-      <p class="hint">Tap an artist to switch it off or on.</p>
+      <p class="hint">Tap an artist to switch it off or on. Tap × to remove it from your list (only on this device).</p>
       <p class="hint" style="margin:14px 0 8px">Your artists</p>
       <form class="addrow" id="artistForm">
         <input id="artistIn" placeholder="Add an artist, e.g. Justin Bieber" maxlength="40" autocomplete="off">
@@ -1023,9 +1025,9 @@ const BASE = {1:10,2:20,3:30};
 
 // ---- State ----
 const KEY="karaoke-challenge-en-v1";
-let S = {players:[], turn:0, cats:[...CATS], penalty:5, bonus:10, current:null, disabledArtists:[], log:[], used:[], customArtists:[], rounds:3, timerSec:90, round:1, started:0, screen:"home", volume:0.7, muted:false};
+let S = {players:[], turn:0, cats:[...CATS], penalty:5, bonus:10, current:null, disabledArtists:[], hiddenArtists:[], log:[], used:[], customArtists:[], rounds:3, timerSec:90, round:1, started:0, screen:"home", volume:0.7, muted:false};
 let draft=null;
-try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.players){S={...S,...s};for(const c of ["2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood"])if(!S.cats.includes(c))S.cats.push(c);if(!Array.isArray(S.disabledArtists))S.disabledArtists=[];if(!S.customArtists)S.customArtists=[];if(S.rounds==null)S.rounds=3;if(S.volume==null)S.volume=.7;if(S.muted==null)S.muted=false;if(S.timerSec==null)S.timerSec=90;if(!S.round)S.round=1;if(!S.started)S.started=0;if(!["home","settings","players","game","final"].includes(S.screen))S.screen="home";if(S.screen==="setup")S.screen="home";}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.players){S={...S,...s};for(const c of ["2000s","K-Pop","Disney","High School Musical","Word Hunt","Artists","Genres","Years","Mood"])if(!S.cats.includes(c))S.cats.push(c);if(!Array.isArray(S.disabledArtists))S.disabledArtists=[];if(!Array.isArray(S.hiddenArtists))S.hiddenArtists=[];if(!S.customArtists)S.customArtists=[];if(S.rounds==null)S.rounds=3;if(S.volume==null)S.volume=.7;if(S.muted==null)S.muted=false;if(S.timerSec==null)S.timerSec=90;if(!S.round)S.round=1;if(!S.started)S.started=0;if(!["home","settings","players","game","final"].includes(S.screen))S.screen="home";if(S.screen==="setup")S.screen="home";}}catch(e){}
 const $=id=>document.getElementById(id);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200)}
@@ -1176,10 +1178,11 @@ function render(){
   $("deckSize").textContent=`${nDeck} cards in your deck (${S.cats.length} of ${CATS.length} categories).`;
   // built-in artists (toggle on/off)
   const builtin=builtinArtists(), nOn=builtin.filter(a=>!artistOff(a)).length;
-  $("builtinList").innerHTML=builtin.map(a=>`<button class="chip${artistOff(a)?'':' on'}" data-builtin="${esc(a)}" title="${artistOff(a)?'Switch on':'Switch off'}">${esc(a)}</button>`).join("");
+  $("builtinList").innerHTML=builtin.filter(a=>!artistHidden(a)).map(a=>`<button class="chip${artistOff(a)?'':' on'}" data-builtin="${esc(a)}" title="${artistOff(a)?'Switch on':'Switch off'}">${esc(a)}<span class="del" data-del="${esc(a)}" title="Remove from my list">×</span></button>`).join("");
+  const nHidden=S.hiddenArtists.length;$("artistsRestore").hidden=!nHidden;$("artistsRestore").textContent=`↩ Restore ${nHidden} removed`;
   // custom artists
   $("artistList").innerHTML=S.customArtists.map((a,i)=>`<button class="chip on" data-art="${i}" title="Remove">${esc(a)} ×</button>`).join("")||`<span class="hint" style="margin:0">No custom artists yet</span>`;
-  $("artistsSummary").textContent=`${builtin.length} built-in artists (${nOn} on) + ${S.customArtists.length} of your own.`;
+  $("artistsSummary").textContent=`${builtin.length} built-in artists (${nOn} on${S.hiddenArtists.length?`, ${S.hiddenArtists.length} removed`:""}) + ${S.customArtists.length} of your own.`;
   // turn text
   const ok=S.players.length>=2;
   const cur=S.players[S.turn];
@@ -1218,9 +1221,11 @@ $("artistForm").onsubmit=e=>{e.preventDefault();const a=$("artistIn").value.trim
   if(S.customArtists.some(x=>x.toLowerCase()===a.toLowerCase())){toast("Already added");return}
   S.customArtists.push(a);$("artistIn").value="";save();render();toast(`Added: Sing a ${a} song`)};
 $("artistList").onclick=e=>{const b=e.target.closest("[data-art]");if(!b)return;S.customArtists.splice(+b.dataset.art,1);save();render()};
-$("builtinList").onclick=e=>{const b=e.target.closest("[data-builtin]");if(!b)return;const a=b.dataset.builtin;
+$("builtinList").onclick=e=>{const d=e.target.closest("[data-del]");if(d){e.stopPropagation();const a=d.dataset.del;if(!artistHidden(a))S.hiddenArtists.push(a);save();render();toast(`${a} removed – restore anytime`);return}
+  const b=e.target.closest("[data-builtin]");if(!b)return;const a=b.dataset.builtin;
   S.disabledArtists=artistOff(a)?S.disabledArtists.filter(x=>x.toLowerCase()!==a.toLowerCase()):[...S.disabledArtists,a];save();render()};
-$("artistsAll").onclick=()=>{const all=builtinArtists();S.disabledArtists=all.some(artistOff)?[]:all;save();render()};
+$("artistsRestore").onclick=()=>{S.hiddenArtists=[];save();render();toast("All built-in artists restored")};
+$("artistsAll").onclick=()=>{const all=builtinArtists().filter(a=>!artistHidden(a));S.disabledArtists=all.some(artistOff)?[]:all;save();render()};
 const toggleMute=()=>{S.muted=!S.muted;save();render();if(!S.muted)sfx.draw();toast(S.muted?"Sound off":"Sound on")};
 $("muteBtn").onclick=toggleMute;$("muteBtn2").onclick=toggleMute;
 $("volume").oninput=e=>{S.volume=Math.max(0,Math.min(1,(+e.target.value||0)/100));$("volVal").textContent=Math.round(S.volume*100)+"%";if(S.volume>0&&S.muted){S.muted=false;$("muteBtn").textContent="🔊 Sound on";$("muteBtn2").textContent="🔊"}};
@@ -1252,7 +1257,8 @@ $("bonus").onchange=e=>{S.bonus=Math.max(0,+e.target.value||0);save()};
 
 const ART_RE=/^Sing an? (.+?) song$/;
 function builtinArtists(){return CHALLENGES.filter(c=>c[0]==="Artists").map(c=>(c[1].match(ART_RE)||[])[1]).filter(Boolean).sort((a,b)=>a.localeCompare(b))}
-function artistOff(a){a=a.toLowerCase();return S.disabledArtists.some(x=>x.toLowerCase()===a)}
+function artistOff(a){a=a.toLowerCase();return S.disabledArtists.some(x=>x.toLowerCase()===a)||artistHidden(a)}
+function artistHidden(a){a=a.toLowerCase();return S.hiddenArtists.some(x=>x.toLowerCase()===a)}
 function deck(){return CHALLENGES.filter(c=>{if(c[0]!=="Artists")return true;const m=c[1].match(ART_RE);return !m||!artistOff(m[1])}).concat(S.customArtists.map(a=>["Artists","Sing a "+a+" song",2]))}
 $("draw").onclick=e=>{
   const b=e.target.closest("[data-diff]");if(!b||b.disabled)return;const want=+b.dataset.diff;
@@ -1296,7 +1302,7 @@ function endCard(){
   setTimeout(render,350);
 }
 if($("resetScores"))$("resetScores").onclick=()=>{if(!confirm("Reset all scores to 0?"))return;S.players.forEach(p=>p.score=0);S.log=[];S.current=null;S.turn=0;S.used=[];save();render()};
-if($("resetAll"))$("resetAll").onclick=()=>{if(!confirm("New game? All players and scores will be deleted."))return;S={players:[],turn:0,cats:[...CATS],penalty:S.penalty,bonus:S.bonus,current:null,log:[],used:[],customArtists:S.customArtists,disabledArtists:S.disabledArtists};save();render()};
+if($("resetAll"))$("resetAll").onclick=()=>{if(!confirm("New game? All players and scores will be deleted."))return;S={players:[],turn:0,cats:[...CATS],penalty:S.penalty,bonus:S.bonus,current:null,log:[],used:[],customArtists:S.customArtists,hiddenArtists:S.hiddenArtists,disabledArtists:S.disabledArtists};save();render()};
 
 // ---- Timer ----
 let tLeft=0,tId=null;
